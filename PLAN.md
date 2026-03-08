@@ -84,8 +84,8 @@ CREATE TABLE chat_messages (
 
 ### Frontend
 - `base.html` — Shared layout with nav bar ("BakeShift" brand link), `{% block content %}` slot, footer, CSS link
-- `home.html` — Extends base. Hero section with heading + tagline. Two clickable cards side-by-side: "Upload a Recipe" links to `/modify?mode=upload`, "Create a Recipe" links to `/modify?mode=create`
-- `style.css` — Warm baking palette (cream background `#fdf6ee`, dark brown text `#3e2723`, brown navbar `#5d4037`). Cards with hover lift animation
+- `home.html` — Extends base. Hero section with heading + tagline. Two large clickable cards side-by-side (`.card-large` — 380px wide, 3.5rem padding, oversized icons and headings): "Upload a Recipe" links to `/modify?mode=upload`, "Create a Recipe" links to `/modify?mode=create`
+- `style.css` — Warm baking palette (cream background `#fdf6ee`, dark brown text `#3e2723`, brown navbar `#5d4037`). Large cards with hover lift animation. Cards scale down to full-width on mobile (<768px)
 
 ### Backend
 - `app.py` — Initialize Flask app, load `.env`, create Supabase client. Single route `GET /` renders `home.html`
@@ -96,30 +96,46 @@ CREATE TABLE chat_messages (
 
 ---
 
-## Feature 2: Modification Request Page
+## Feature 2: Modification Request Page (Two-Screen Design)
 
 **Files:** `templates/modify.html`, `static/js/modify.js`, `static/css/style.css` (append), `app.py` (add routes)
 
 ### Frontend
-- `modify.html` — Extends base. Receives `mode` variable from Flask
-  - **Upload mode:** Large textarea to paste recipe + file upload input (`.txt`, images)
-  - **Create mode:** Structured form — recipe name, ingredients (one per line), instructions
-  - **Shared section (both modes):** Modification criteria with checkboxes + text inputs:
-    - Allergies: nut-free, dairy-free, gluten-free, egg-free + "other" text field
-    - Taste: less sweet, more savory, less rich, more chocolatey + "other" text field
-    - Ingredient limitations: free text field
-    - Equipment: no stand mixer, no oven, no food processor + "other" text field
+- `modify.html` — Extends base. Uses Jinja `{% if mode == 'upload' %}` / `{% else %}` for two layouts:
+
+  **Upload mode (`/modify?mode=upload`):**
+  - Page title: "Upload a Recipe"
+  - Large recipe preview area with two input options:
+    - Textarea to paste recipe text
+    - File upload button (accepts `.txt` and images) with a preview area showing uploaded content
+
+  **Create mode (`/modify?mode=create`):**
+  - Page title: "Create a Recipe"
+  - Two-row layout:
+    - **Top row (full width):** "Type It In" — large textarea for manually typing a recipe
+    - **Bottom row (two columns, 1fr 1fr):** "Paste a URL" (text input + Fetch button + preview area) | "Upload a Photo" (file upload + image preview)
+  - Rows stack to single column below 768px
+
+  **Shared Recipe Criteria section (both modes):**
+  - Allergies: checkboxes (nut-free, dairy-free, gluten-free, egg-free) + "other" text field
+  - Taste preferences: checkboxes (less sweet, more savory, less rich, more chocolatey) + "other" text field
+  - Ingredient limitations: free text field
+  - Equipment limitations: checkboxes (no stand mixer, no oven, no food processor) + "other" text field
   - Submit button → `POST /submit`
-- `modify.js` — Validates that upload mode has either pasted text or a file before submitting
+
+- `modify.js` — Upload mode: validate pasted text OR uploaded file. Create mode: validate at least one input method has content. URL preview via `POST /api/fetch-url`. File upload image/text preview.
 
 ### Backend (2 routes)
 - `GET /modify` — Reads `?mode=` query param, renders `modify.html` with mode variable
-- `POST /submit` — Collects all form data, combines checkbox values with "other" text fields, saves original recipe to `recipes` table, creates placeholder modified recipe, saves modification request to `modifications` table, redirects to `/results/<modification_id>`
+- `POST /api/fetch-url` — Receives a URL, returns placeholder JSON (AI extraction added later)
 
 ### Test
-- Full flow: Home → click card → see correct form mode → fill out → submit
-- Check Supabase dashboard for new rows in `recipes` and `modifications`
-- Redirect to results page gives 404 (expected — Page 3 doesn't exist yet)
+- Home → "Upload a Recipe" → see title, paste/upload area with preview, criteria section
+- Home → "Create a Recipe" → see title, two-row layout (type on top, URL + photo below), criteria section
+- Test file upload preview in both modes
+- Test URL fetch preview on create screen
+- Resize below 768px → columns stack vertically
+- Submit button visible and styled on both screens
 
 ---
 

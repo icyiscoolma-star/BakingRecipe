@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>.content { max-width: 1200px; }</style>
+<div class="results-layout">
+    <div class="results-main">
+        <!-- Modified Recipe -->
+        <div class="result-card result-card--modified">
+            <h2>Modified Recipe</h2>
+            <h3>{{ modified_recipe.recipe_name }}</h3>
+            <div class="result-card-section">
+                <h4>Ingredients</h4>
+                <pre class="result-text">{{ modified_recipe.ingredients }}</pre>
+            </div>
+            <div class="result-card-section">
+                <h4>Instructions</h4>
+                <pre class="result-text">{{ modified_recipe.instructions }}</pre>
+            </div>
+        </div>
+
+        <!-- Criteria Summary -->
+        <div class="result-card result-card--criteria">
+            <h2>Modification Criteria</h2>
+            <ul class="criteria-list">
+                {% if modification.allergies %}
+                <li><strong>Allergies:</strong> {{ modification.allergies }}</li>
+                {% endif %}
+                {% if modification.taste_preferences %}
+                <li><strong>Taste Preferences:</strong> {{ modification.taste_preferences }}</li>
+                {% endif %}
+                {% if modification.ingredient_limitations %}
+                <li><strong>Ingredient Limitations:</strong> {{ modification.ingredient_limitations }}</li>
+                {% endif %}
+                {% if modification.equipment_limitations %}
+                <li><strong>Equipment Limitations:</strong> {{ modification.equipment_limitations }}</li>
+                {% endif %}
+            </ul>
+        </div>
+
+        <!-- Original Recipe -->
+        <div class="result-card result-card--original">
+            <h2>Original Recipe</h2>
+            <h3>{{ original_recipe.recipe_name }}</h3>
+            <div class="result-card-section">
+                <h4>Ingredients</h4>
+                <pre class="result-text">{{ original_recipe.ingredients }}</pre>
+            </div>
+            <div class="result-card-section">
+                <h4>Instructions</h4>
+                <pre class="result-text">{{ original_recipe.instructions }}</pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Panel -->
+    <aside class="chat-panel">
+        <h2>Chat with BakeShift</h2>
+        <div id="chat-messages" class="chat-messages">
+            <div class="chat-bubble chat-bubble--assistant">
+                Welcome! I can help you refine this recipe. Ask me anything about the modifications.
+            </div>
+            {% for msg in chat_messages %}
+            <div class="chat-bubble chat-bubble--{{ msg.role }}">
+                {{ msg.content }}
+            </div>
+            {% endfor %}
+        </div>
+        <form id="chat-form" class="chat-input-area">
+            <input type="hidden" name="modification_id" value="{{ modification.id }}">
+            <input type="text" id="chat-input" class="chat-input" placeholder="Type a message..." autocomplete="off">
+            <button type="submit" class="chat-send-btn">Send</button>
+        </form>
+    </aside>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+{% endblock %}

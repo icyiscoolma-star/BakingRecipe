@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero">
+    <h1>Welcome to BakeShift</h1>
+    <p class="tagline">Modify any baking recipe to fit your needs — allergies, taste, ingredients, or equipment.</p>
+</section>
+
+<section class="cards">
+    <a href="/modify?mode=upload" class="card card-large">
+        <div class="card-icon">&#128228;</div>
+        <h2>Upload a Recipe</h2>
+        <p>Paste or upload an existing recipe to modify</p>
+    </a>
+    <a href="/modify?mode=create" class="card card-large">
+        <div class="card-icon">&#9997;</div>
+        <h2>Create a Recipe</h2>
+        <p>Enter your own recipe from scratch</p>
+    </a>
+</section>
+{% endblock %}

@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block content %}
+<form id="modify-form" action="/submit" method="POST" enctype="multipart/form-data">
+<input type="hidden" name="mode" value="{{ mode }}">
+
+{% if mode == 'upload' %}
+<h1 class="modify-title">Upload a Recipe</h1>
+
+<div class="upload-section">
+    <div class="upload-input-group">
+        <label for="recipe-text">Paste your recipe text:</label>
+        <textarea id="recipe-text" name="recipe_text" class="upload-textarea" placeholder="Paste your recipe here..."></textarea>
+    </div>
+
+    <div class="upload-divider">OR</div>
+
+    <div class="upload-input-group">
+        <label for="file-upload">Upload a file:</label>
+        <input type="file" id="file-upload" name="recipe_file" accept=".txt,image/*" class="file-input">
+        <div id="upload-preview" class="upload-preview"></div>
+    </div>
+</div>
+
+{% else %}
+<h1 class="modify-title">Create a Recipe</h1>
+
+<div class="create-row">
+    <div class="create-column">
+        <h2>Type It In</h2>
+        <textarea id="type-recipe" name="typed_recipe" class="create-textarea" placeholder="Type your recipe here..."></textarea>
+    </div>
+</div>
+
+<div class="create-row create-row-bottom">
+    <div class="create-column">
+        <h2>Paste a URL</h2>
+        <div class="url-input-group">
+            <input type="url" id="recipe-url" name="recipe_url" placeholder="https://example.com/recipe" class="url-input">
+            <button type="button" id="fetch-url-btn" class="fetch-btn">Fetch</button>
+        </div>
+        <div id="url-preview" class="url-preview"></div>
+    </div>
+
+    <div class="create-column">
+        <h2>Upload a Photo</h2>
+        <input type="file" id="photo-upload" name="recipe_photo" accept="image/*" class="file-input">
+        <div id="photo-preview" class="photo-preview"></div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Shared Recipe Criteria -->
+    <div class="criteria-section">
+        <h2>Recipe Criteria</h2>
+
+        <fieldset>
+            <legend>Allergies</legend>
+            <label><input type="checkbox" name="allergies" value="nut-free"> Nut-free</label>
+            <label><input type="checkbox" name="allergies" value="dairy-free"> Dairy-free</label>
+            <label><input type="checkbox" name="allergies" value="gluten-free"> Gluten-free</label>
+            <label><input type="checkbox" name="allergies" value="egg-free"> Egg-free</label>
+            <div class="other-field">
+                <label for="allergies-other">Other:</label>
+                <input type="text" id="allergies-other" name="allergies_other" placeholder="Any other allergies...">
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>Taste Preferences</legend>
+            <label><input type="checkbox" name="taste" value="less-sweet"> Less sweet</label>
+            <label><input type="checkbox" name="taste" value="more-savory"> More savory</label>
+            <label><input type="checkbox" name="taste" value="less-rich"> Less rich</label>
+            <label><input type="checkbox" name="taste" value="more-chocolatey"> More chocolatey</label>
+            <div class="other-field">
+                <label for="taste-other">Other:</label>
+                <input type="text" id="taste-other" name="taste_other" placeholder="Any other taste preferences...">
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>Ingredient Limitations</legend>
+            <textarea name="ingredient_limitations" class="criteria-textarea" placeholder="List any ingredients you'd like to avoid or substitute..."></textarea>
+        </fieldset>
+
+        <fieldset>
+            <legend>Equipment Limitations</legend>
+            <label><input type="checkbox" name="equipment" value="no-stand-mixer"> No stand mixer</label>
+            <label><input type="checkbox" name="equipment" value="no-oven"> No oven</label>
+            <label><input type="checkbox" name="equipment" value="no-food-processor"> No food processor</label>
+            <div class="other-field">
+                <label for="equipment-other">Other:</label>
+                <input type="text" id="equipment-other" name="equipment_other" placeholder="Any other equipment limitations...">
+            </div>
+        </fieldset>
+
+        <button type="submit" class="submit-btn">Modify My Recipe</button>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/modify.js') }}"></script>
+{% endblock %}
