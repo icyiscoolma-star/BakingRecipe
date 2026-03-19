@@ -2,7 +2,7 @@
 
 ## Context
 
-We're building a baking recipe modification website from a blank repo. The app helps users modify recipes based on allergies, taste preferences, ingredient limitations, and equipment limitations. Built with an 8th grader using Python Flask + Supabase. AI integration will be added later — for now we use placeholders. We build feature by feature: frontend first, then backend.
+We're building a baking recipe modification website from a blank repo. The app helps users modify recipes based on allergies, taste preferences, ingredient limitations, and equipment limitations. Built with an 8th grader using Python Flask + Supabase. AI is powered by the Claude API (Anthropic) using the user's Max plan API key. We build feature by feature: frontend first, then backend.
 
 ## App Flow (3 Pages)
 
@@ -36,9 +36,9 @@ BakingRecipe/
 
 ### Steps
 1. Create Python virtual environment: `python3 -m venv .venv && source .venv/bin/activate`
-2. Create `requirements.txt` with: `flask==3.1.0`, `supabase==2.13.0`, `python-dotenv==1.1.0`
+2. Create `requirements.txt` with: `flask==3.1.0`, `supabase==2.13.0`, `python-dotenv==1.1.0`, `anthropic`
 3. `pip install -r requirements.txt`
-4. Create `.env` with `SUPABASE_URL` and `SUPABASE_KEY` (from Supabase dashboard)
+4. Create `.env` with `SUPABASE_URL`, `SUPABASE_KEY` (from Supabase dashboard), and `ANTHROPIC_API_KEY` (from console.anthropic.com)
 5. Create `.gitignore` (exclude `.venv/`, `__pycache__/`, `.env`, `uploads/`)
 6. Create Supabase tables (SQL below)
 7. Create directory structure: `mkdir -p templates static/css static/js static/images uploads`
@@ -184,6 +184,58 @@ CREATE TABLE chat_messages (
 
 ---
 
+## Feature 5: AI Recipe Modification (Claude API)
+
+**Files:** `app.py` (update `submit()` route + add helper), `requirements.txt` (add `anthropic`)
+
+### Setup
+- Add `ANTHROPIC_API_KEY` to `.env`
+- `pip install anthropic`
+- Initialize the Anthropic client in `app.py` alongside the Supabase client
+
+### Backend — Update `POST /submit`
+- After collecting the original recipe + criteria, call the Claude API to generate the modified recipe
+- **System prompt:** You are a professional baker and recipe developer. The user will give you a recipe and modification criteria. Return a modified version of the recipe that satisfies all the criteria. Format your response as: recipe name on the first line, then "## Ingredients" section, then "## Instructions" section. Keep the same general structure as the original recipe.
+- **User message:** Include the original recipe text + all criteria (allergies, taste, ingredient limitations, equipment limitations)
+- **Model:** `claude-sonnet-4-20250514` (fast, cost-effective for recipe tasks)
+- Parse Claude's response to extract recipe name, ingredients, and instructions
+- Save the AI-generated modified recipe to the `recipes` table (replacing the old placeholder text)
+- If the API call fails, fall back to the placeholder text so the app doesn't break
+
+### Frontend — Update `POST /api/fetch-url`
+- When user pastes a URL on the Create screen and clicks "Fetch", send the URL to the backend
+- Backend calls Claude API with the URL text and asks it to extract the recipe (name, ingredients, instructions) from the page content
+- Return the extracted recipe text to the frontend preview area
+- **Note:** We are not actually fetching the URL content (that requires additional libraries). For now, Claude receives just the URL and returns a message explaining this. Full URL scraping can be added later.
+
+### Test
+- Submit a recipe with criteria → results page shows an AI-modified recipe (not placeholder text)
+- Ingredients and instructions should reflect the requested modifications (e.g., dairy-free substitutions)
+- If `ANTHROPIC_API_KEY` is missing, app still works with placeholder text
+
+---
+
+## Feature 6: AI Chat on Results Page (Claude API)
+
+**Files:** `app.py` (update `chat()` route)
+
+### Backend — Update `POST /api/chat`
+- Replace the canned placeholder reply with a Claude API call
+- **System prompt:** You are a helpful baking assistant. The user is looking at a modified recipe. Here is the context: [include original recipe, modified recipe, and modification criteria]. Help them with follow-up questions — they might ask for further tweaks, substitution ideas, baking tips, or explanations of why a change was made. Keep responses concise and friendly.
+- **User message:** The chat message from the user
+- **Conversation history:** Load all previous `chat_messages` for this `modification_id` from Supabase and include them as prior messages in the Claude API call, so the conversation has full context
+- **Model:** `claude-sonnet-4-20250514`
+- Save both user message and Claude's reply to `chat_messages` table (already implemented)
+- If the API call fails, return a friendly error message instead of crashing
+
+### Test
+- On results page, ask "Why did you substitute almond milk?" → get a context-aware answer referencing the dairy-free criteria
+- Ask a follow-up → Claude remembers the conversation
+- Refresh page → all messages persist and Claude still has context on next message
+- If API key is missing, chat returns a friendly fallback message
+
+---
+
 ## Build Order Summary
 
 | Step | Build | Testable Result |
@@ -193,20 +245,25 @@ CREATE TABLE chat_messages (
 | Feature 2 | Modify page (HTML/CSS/JS → Flask routes + Supabase) | Form submits, data in Supabase |
 | Feature 3 | Results page (HTML/CSS → Flask route + Supabase reads) | End-to-end flow works |
 | Feature 4 | Chat (JS → Flask API + Supabase chat storage) | Chat sends, displays, persists |
+| Feature 5 | AI recipe modification (Claude API in submit route) | Modified recipe is AI-generated |
+| Feature 6 | AI chat (Claude API in chat route) | Chat gives context-aware baking answers |
 
-## Where AI Gets Added Later
+## AI Integration Summary
 
-Only 2 places change when real AI is added:
-1. `app.py` `submit_modification()` — Replace placeholder modified recipe with AI-generated result
-2. `app.py` `chat()` — Replace canned reply with AI API call
+All AI is powered by the **Claude API** (Anthropic) via the `anthropic` Python SDK. Only two routes contain AI logic:
+1. `app.py` `submit()` — Calls Claude to generate a modified recipe based on criteria
+2. `app.py` `chat()` — Calls Claude with conversation history + recipe context for follow-up chat
 
-Everything else (frontend, database, routing) stays the same.
+**Model:** `claude-sonnet-4-20250514` for both (good balance of quality and speed)
+**API key:** Stored in `.env` as `ANTHROPIC_API_KEY`, loaded via `python-dotenv`
+**Fallback:** Both routes gracefully degrade to placeholder text if the API key is missing or the call fails
 
 ## Verification
 
-After each feature, run `python app.py` and test the flow in the browser. After all 4 features:
+After each feature, run `python app.py` and test the flow in the browser. After all 6 features:
 1. Start at home page → click "Create a Recipe"
 2. Fill in recipe + modification criteria → click "Modify Recipe"
-3. See results page with all 3 cards and chat panel
-4. Send chat messages → see them appear and persist on refresh
-5. Confirm all data in Supabase dashboard (recipes, modifications, chat_messages tables)
+3. See results page with AI-modified recipe reflecting the criteria
+4. Send chat messages → get context-aware AI responses about the recipe
+5. Refresh page → chat history persists, AI remembers conversation
+6. Confirm all data in Supabase dashboard (recipes, modifications, chat_messages tables)

@@ -156,6 +156,36 @@ def results(modification_id):
     )
 
 
+@app.route("/api/chat", methods=["POST"])
+def chat():
+    data = request.get_json()
+    modification_id = data.get("modification_id", "")
+    message = data.get("message", "").strip()
+
+    if not message:
+        return jsonify({"error": "No message provided."}), 400
+
+    # Placeholder reply — AI will be swapped in later
+    reply = "Thanks for your message! AI-powered recipe chat will be available in a future update."
+
+    if supabase and modification_id != "demo":
+        # Save user message
+        supabase.table("chat_messages").insert({
+            "modification_id": modification_id,
+            "role": "user",
+            "content": message,
+        }).execute()
+
+        # Save assistant reply
+        supabase.table("chat_messages").insert({
+            "modification_id": modification_id,
+            "role": "assistant",
+            "content": reply,
+        }).execute()
+
+    return jsonify({"reply": reply})
+
+
 @app.route("/api/fetch-url", methods=["POST"])
 def fetch_url():
     data = request.get_json()
