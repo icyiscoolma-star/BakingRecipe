@@ -236,6 +236,353 @@ CREATE TABLE chat_messages (
 
 ---
 
+---
+
+## Feature 7: Recipe History Dashboard
+
+**Files:** `templates/history.html` (new), `static/css/style.css` (append), `app.py` (add route)
+
+### Frontend
+- `history.html` — Extends base. Grid of recipe cards showing all past modifications
+  - Each card shows: original recipe name, modification date, dietary tags (from criteria), and a link to the results page
+  - Search/filter bar to filter by recipe name or dietary tags
+  - Empty state message if no history exists
+
+### Backend
+- `GET /history` — Queries Supabase `modifications` table joined with `recipes`, ordered by `created_at` descending. Passes list to template.
+
+### Navigation
+- Add "History" link to the navbar in `base.html`
+
+### Test
+- Submit a few recipes → visit `/history` → see all past modifications listed
+- Click a card → navigate to that recipe's results page
+
+---
+
+## Feature 8: Print / Export Recipe
+
+**Files:** `static/css/style.css` (append print styles), `templates/results.html` (add button), `static/js/results.js` (new, optional)
+
+### Frontend
+- Add a "Print Recipe" button at the top of the results main content area
+- CSS `@media print` stylesheet that:
+  - Hides navbar, footer, chat panel, and print button
+  - Formats the modified recipe card as a clean, single-column cookbook-style layout
+  - Uses readable serif font and appropriate margins for paper
+
+### Test
+- Click "Print Recipe" → browser print dialog opens with a clean recipe layout
+- Chat panel and navigation are not visible in the print preview
+
+---
+
+## Feature 9: Recipe Scaling
+
+**Files:** `templates/results.html` (add scaling controls), `static/js/results.js` (new or extend), `static/css/style.css` (append)
+
+### Frontend
+- Add a scaling selector (0.5x, 1x, 2x, 3x) above the modified recipe card
+- When user selects a multiplier, JavaScript parses ingredient quantities (numbers, fractions) and multiplies them
+- Display the scaled ingredients inline, with the original quantities shown in parentheses
+- Instructions remain unchanged (only ingredients scale)
+
+### Test
+- Select 2x → "1 cup butter" becomes "2 cups butter"
+- Select 0.5x → "2 eggs" becomes "1 egg"
+- Switch back to 1x → original quantities restored
+
+---
+
+## Feature 10: Share Recipe
+
+**Files:** `app.py` (add route), `templates/results.html` (add share button), `static/js/results.js` (extend)
+
+### Frontend
+- Add a "Share" button on the results page
+- Clicking it copies the results page URL to the clipboard with a toast notification: "Link copied!"
+
+### Backend
+- Results pages are already accessible via `/results/<modification_id>` — no new route needed, just ensure the page works for anyone with the link
+
+### Test
+- Click "Share" → URL copied to clipboard → paste it in a new tab → same results page loads
+
+---
+
+## Feature 11: Favorites / Save Recipes
+
+**Files:** `app.py` (add routes), `templates/results.html` (add favorite button), `templates/history.html` (add filter), `static/css/style.css` (append)
+
+### Supabase
+- Add a `is_favorite` boolean column to the `modifications` table:
+  ```sql
+  ALTER TABLE modifications ADD COLUMN is_favorite BOOLEAN DEFAULT FALSE;
+  ```
+
+### Frontend
+- Add a heart/star toggle button on the results page
+- On the history page, add a "Favorites" filter toggle to show only favorited recipes
+
+### Backend
+- `POST /api/favorite` — Receives `{modification_id}`, toggles `is_favorite` in Supabase
+- Update `/history` route to support `?filter=favorites` query param
+
+### Test
+- Click the favorite button → heart fills in → refresh → still favorited
+- Go to history → filter by favorites → only favorited recipes appear
+
+---
+
+## Feature 12: Dietary Presets
+
+**Files:** `templates/modify.html` (add preset buttons), `static/js/modify.js` (extend), `static/css/style.css` (append)
+
+### Frontend
+- Add a row of preset buttons above the criteria section: "Vegan", "Keto", "Paleo", "Dairy-Free", "Nut-Free"
+- Clicking a preset auto-checks the relevant checkboxes and fills in relevant text fields:
+  - **Vegan:** dairy-free, egg-free + ingredient limitation "no animal products"
+  - **Keto:** less sweet + ingredient limitation "low carb, no sugar, no flour"
+  - **Paleo:** gluten-free + ingredient limitation "no refined sugar, no dairy, no grains"
+  - **Dairy-Free:** dairy-free checkbox
+  - **Nut-Free:** nut-free checkbox
+- Clicking the same preset again deselects it (toggle behavior)
+- Multiple presets can be combined
+
+### Test
+- Click "Vegan" → dairy-free and egg-free checked, ingredient limitation filled
+- Click "Keto" additionally → less sweet also checked
+- Click "Vegan" again → those specific selections removed
+
+---
+
+## Feature 13: Side-by-Side Recipe Diff
+
+**Files:** `templates/results.html` (add diff view toggle), `static/js/results.js` (extend), `static/css/style.css` (append)
+
+### Frontend
+- Add a "Show Changes" toggle button on the results page
+- When toggled on, display the original and modified recipes side-by-side in a two-column layout
+- Highlight differences:
+  - **Green background** for added/changed ingredients or steps in the modified version
+  - **Red strikethrough** for removed/replaced items in the original version
+- JavaScript performs a simple line-by-line comparison between original and modified ingredients/instructions
+
+### Test
+- Toggle "Show Changes" → see side-by-side view with highlighted differences
+- Toggle off → return to normal stacked card view
+- Substituted ingredients should appear red (original) / green (modified)
+
+---
+
+## Feature 14: AI Recipe Image Generation
+
+**Files:** `app.py` (add route), `templates/results.html` (add image area), `static/css/style.css` (append)
+
+### Frontend
+- Add a "Generate Photo" button on the modified recipe card
+- When clicked, shows a loading animation, then displays the AI-generated image of the recipe
+
+### Backend
+- `POST /api/generate-image` — Receives `{modification_id}`, builds a prompt from the modified recipe name and ingredients, calls an image generation API, returns the image URL
+- **Note:** This requires an image generation API (e.g., DALL-E, Stability AI). Implementation details depend on which service is chosen. Can start as a placeholder that returns a stock baking image.
+
+### Test
+- Click "Generate Photo" → loading animation → image appears above the recipe
+- Image should visually represent the modified recipe
+
+---
+
+## Design 1: Custom Typography
+
+**Files:** `templates/base.html` (add Google Fonts link), `static/css/style.css` (update font rules)
+
+### Implementation
+- Add Google Fonts link in `base.html` `<head>`: Playfair Display (headings) + Inter (body text)
+- Update CSS:
+  - `body` font-family → `'Inter', sans-serif`
+  - `h1, h2, h3` font-family → `'Playfair Display', serif`
+  - Adjust font sizes and letter-spacing for the new fonts
+  - Recipe content (ingredients, instructions) uses Inter for readability
+
+### Test
+- All pages show serif headings and clean sans-serif body text
+- Recipe content is easy to read at all sizes
+
+---
+
+## Design 2: Illustrated SVG Icons
+
+**Files:** `static/images/` (add SVG files), `templates/home.html` (replace emoji), `static/css/style.css` (update)
+
+### Implementation
+- Create or source hand-drawn style SVG icons: whisk (upload), rolling pin (create), oven, mixing bowl, timer
+- Replace emoji card icons on the home page with `<img>` tags pointing to SVGs
+- Add SVG icons to section headers on the modify and results pages
+- Style icons with CSS (size, color tinting via `filter` or `fill`)
+
+### Test
+- Home page cards show illustrated icons instead of emoji
+- Icons scale correctly on mobile
+
+---
+
+## Design 3: Animated Transitions
+
+**Files:** `static/css/style.css` (append animations), `static/js/transitions.js` (new, optional)
+
+### Implementation
+- **Page entrance:** Cards and sections fade-in and slide-up on page load using CSS `@keyframes` and `animation`
+- **Scroll animations:** Recipe cards on the results page animate in as user scrolls using `IntersectionObserver` in JS
+- **Hover effects:** Enhanced card hover with smooth shadow growth and slight rotation
+- **Form interactions:** Smooth expand/collapse on criteria fieldsets
+- Keep animations subtle (200-400ms) — enhance, don't distract
+
+### Test
+- Navigate between pages → content fades/slides in smoothly
+- Scroll down results page → cards animate into view
+- Hover cards → smooth shadow and lift effect
+
+---
+
+## Design 4: Dietary Tag Badges
+
+**Files:** `static/css/style.css` (append badge styles), `templates/results.html` (add badges), `templates/history.html` (add badges)
+
+### Implementation
+- Color-coded pill badges displayed on recipe cards:
+  - Green → vegan / dairy-free
+  - Blue → gluten-free
+  - Orange → nut-free
+  - Purple → keto
+  - Red → egg-free
+- Parse the modification criteria and generate the appropriate badges
+- Display on both the results page (criteria card) and history page (recipe cards)
+
+### Test
+- Submit a dairy-free, gluten-free recipe → see green and blue badges on results page
+- History page shows matching badges on each card
+
+---
+
+## Design 5: Dark Mode
+
+**Files:** `static/css/style.css` (add dark mode variables and rules), `templates/base.html` (add toggle button), `static/js/theme.js` (new)
+
+### Implementation
+- Define CSS custom properties for all colors (background, text, card, border, accent)
+- Add a `[data-theme="dark"]` selector that overrides all color variables:
+  - Background: `#1a1a2e` → `#16213e`
+  - Text: `#e0d6cc`
+  - Cards: `#1f2937`
+  - Navbar: `#0f172a`
+  - Accents: warm amber tones
+- Add a sun/moon toggle button in the navbar
+- `theme.js` — Toggles `data-theme` attribute on `<html>`, saves preference to `localStorage`
+
+### Test
+- Click toggle → entire app switches to dark palette
+- Refresh page → dark mode persists
+- All text remains readable, cards have clear borders
+
+---
+
+## Design 6: Baking Loading Animation
+
+**Files:** `static/css/style.css` (append loader styles), `templates/modify.html` (add loader overlay), `static/js/modify.js` (extend)
+
+### Implementation
+- When the user clicks "Modify My Recipe", show a full-page overlay with:
+  - A CSS-animated rolling pin or rising dough illustration
+  - Rotating text messages: "Preheating the oven...", "Mixing ingredients...", "Letting it rise...", "Almost ready..."
+- The overlay stays visible until the server redirects to the results page
+- Pure CSS animation — no external libraries
+
+### Test
+- Click submit → see baking-themed loading animation
+- Animation displays until results page loads
+- Messages rotate every 2-3 seconds
+
+---
+
+## Design 7: Texture & Depth
+
+**Files:** `static/css/style.css` (update), `static/images/` (add texture images, optional)
+
+### Implementation
+- Add subtle paper/parchment texture to the page background using a CSS repeating pattern or a light image overlay
+- Layered card shadows: cards appear to float above the textured background with multi-layer `box-shadow`
+- Criteria section fieldsets have a slightly inset appearance
+- Buttons have a pressed/raised 3D effect using `box-shadow` and active state transforms
+- Keep it subtle — texture should be barely noticeable, not distracting
+
+### Test
+- Background has a warm, tactile feel rather than flat color
+- Cards appear layered and elevated
+- Buttons feel clickable with depth cues
+
+---
+
+## Design 8: Typography Hierarchy & Cookbook Styling
+
+**Files:** `static/css/style.css` (update)
+
+### Implementation
+- Increase heading sizes: page titles 2.5-3rem, section headings 1.5-1.8rem
+- Add generous spacing: more padding in cards, more margin between sections
+- Recipe content styled like a cookbook page:
+  - Ingredients displayed as a clean bulleted list with increased line-height (1.8)
+  - Instructions displayed as numbered steps with each step having extra bottom margin
+  - Subtle left border or indent on recipe content areas
+- Pull quotes or highlighted tips from AI chat styled with a decorative left border and italic text
+
+### Test
+- Results page feels like reading a real cookbook
+- Clear visual hierarchy — eyes naturally flow from title → ingredients → instructions
+- Comfortable reading experience with no cramped text
+
+---
+
+## Design 9: Mobile Polish
+
+**Files:** `static/css/style.css` (update responsive rules), `templates/base.html` (update nav)
+
+### Implementation
+- **Bottom navigation on mobile (<768px):** Fixed bottom bar with 3 icons — Home, History, Theme toggle
+- **Touch-friendly inputs:** Increase checkbox/radio tap targets to 44x44px minimum
+- **Swipeable results cards:** On mobile, allow horizontal swiping between modified/criteria/original cards
+- **Full-width buttons:** All action buttons stretch to full width on mobile
+- **Collapsible criteria section:** On mobile, criteria fieldsets start collapsed with tap-to-expand
+- **Safe area support:** Respect `env(safe-area-inset-bottom)` for notched devices
+
+### Test
+- View on mobile → bottom nav appears, top nav simplifies
+- Tap checkboxes easily with thumb
+- Swipe between recipe cards on results page
+- All content readable without horizontal scrolling
+
+---
+
+## Design 10: Micro-interactions
+
+**Files:** `static/css/style.css` (append), `static/js/interactions.js` (new)
+
+### Implementation
+- **Checkbox animations:** Custom styled checkboxes with a satisfying checkmark draw animation on check
+- **Button ripple effect:** Material-style ripple on click for all buttons using CSS pseudo-elements
+- **Toast notifications:** Slide-in notification bar for actions like "Recipe saved", "Link copied", "Message sent"
+- **Input focus glow:** Warm amber glow on text inputs and textareas when focused
+- **Send button pulse:** Chat send button subtly pulses when there's text in the input
+- All animations use CSS transitions/keyframes — no external libraries
+
+### Test
+- Check a checkbox → see smooth checkmark animation
+- Click any button → see ripple effect from click point
+- Successful actions show toast notification that auto-dismisses after 3 seconds
+- Focus a text input → see warm glow border
+
+---
+
 ## Build Order Summary
 
 | Step | Build | Testable Result |
@@ -247,6 +594,24 @@ CREATE TABLE chat_messages (
 | Feature 4 | Chat (JS → Flask API + Supabase chat storage) | Chat sends, displays, persists |
 | Feature 5 | AI recipe modification (Claude API in submit route) | Modified recipe is AI-generated |
 | Feature 6 | AI chat (Claude API in chat route) | Chat gives context-aware baking answers |
+| Feature 7 | Recipe history dashboard | Past modifications browsable |
+| Feature 8 | Print / export recipe | Clean print layout |
+| Feature 9 | Recipe scaling | Ingredient quantities adjust by multiplier |
+| Feature 10 | Share recipe | Copyable link with toast notification |
+| Feature 11 | Favorites / save recipes | Heart toggle, favorites filter on history |
+| Feature 12 | Dietary presets | One-click preset buttons on modify page |
+| Feature 13 | Side-by-side diff | Highlighted changes between original and modified |
+| Feature 14 | AI recipe image generation | AI-generated photo of the recipe |
+| Design 1 | Custom typography (Google Fonts) | Serif headings, clean body text |
+| Design 2 | Illustrated SVG icons | Hand-drawn icons replace emoji |
+| Design 3 | Animated transitions | Fade/slide entrance, scroll animations |
+| Design 4 | Dietary tag badges | Color-coded pills on recipe cards |
+| Design 5 | Dark mode | Theme toggle with localStorage persistence |
+| Design 6 | Baking loading animation | Themed loader during AI generation |
+| Design 7 | Texture & depth | Paper texture, layered card shadows |
+| Design 8 | Typography hierarchy & cookbook styling | Cookbook-style recipe layout |
+| Design 9 | Mobile polish | Bottom nav, swipeable cards, touch targets |
+| Design 10 | Micro-interactions | Checkbox animations, ripples, toasts, glow |
 
 ## AI Integration Summary
 
@@ -260,7 +625,7 @@ All AI is powered by the **Claude API** (Anthropic) via the `anthropic` Python S
 
 ## Verification
 
-After each feature, run `python app.py` and test the flow in the browser. After all 6 features:
+After each feature, run `python app.py` and test the flow in the browser. After all 6 core features:
 1. Start at home page → click "Create a Recipe"
 2. Fill in recipe + modification criteria → click "Modify Recipe"
 3. See results page with AI-modified recipe reflecting the criteria
