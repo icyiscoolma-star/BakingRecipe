@@ -92,10 +92,13 @@ document.addEventListener("DOMContentLoaded", function () {
         alert("Please paste recipe text or upload a file before submitting.");
       }
     } else {
-      var typed = document.getElementById("type-recipe").value.trim();
+      var title = document.getElementById("recipe-title").value.trim();
+      var ingredients = document.getElementById("recipe-ingredients").value.trim();
+      var instructions = document.getElementById("recipe-instructions").value.trim();
+      var hasTyped = title || ingredients || instructions;
       var url = document.getElementById("recipe-url").value.trim();
       var photo = document.getElementById("photo-upload").files.length > 0;
-      if (!typed && !url && !photo) {
+      if (!hasTyped && !url && !photo) {
         e.preventDefault();
         alert("Please provide a recipe by typing it in, pasting a URL, or uploading a photo.");
       }

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="history-title">Recipe History</h1>
+
+<div class="history-search">
+    <input type="text" id="history-search-input" class="history-search-input" placeholder="Search by recipe name or dietary tag...">
+</div>
+
+{% if modifications %}
+<div class="history-grid" id="history-grid">
+    {% for item in modifications %}
+    <a href="/results/{{ item.id }}" class="history-card">
+        <h2 class="history-card-name">{{ item.recipe_name }}</h2>
+        <p class="history-card-date">{{ item.created_at[:10] }}</p>
+        <div class="history-card-tags">
+            {% if item.allergies %}
+                {% for tag in item.allergies.split(', ') %}
+                <span class="history-tag">{{ tag }}</span>
+                {% endfor %}
+            {% endif %}
+            {% if item.taste_preferences %}
+                {% for tag in item.taste_preferences.split(', ') %}
+                <span class="history-tag history-tag--taste">{{ tag }}</span>
+                {% endfor %}
+            {% endif %}
+            {% if item.equipment_limitations %}
+                {% for tag in item.equipment_limitations.split(', ') %}
+                <span class="history-tag history-tag--equip">{{ tag }}</span>
+                {% endfor %}
+            {% endif %}
+        </div>
+        <p class="history-card-source">{{ item.source_type }}</p>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="history-empty">
+    <p>No recipes modified yet.</p>
+    <a href="/" class="history-empty-link">Get started by modifying a recipe!</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    var input = document.getElementById("history-search-input");
+    var cards = document.querySelectorAll(".history-card");
+
+    input.addEventListener("input", function () {
+        var query = this.value.toLowerCase();
+        cards.forEach(function (card) {
+            var name = card.querySelector(".history-card-name").textContent.toLowerCase();
+            var tags = card.querySelector(".history-card-tags").textContent.toLowerCase();
+            card.style.display = (name.includes(query) || tags.includes(query)) ? "" : "none";
+        });
+    });
+});
+</script>
+{% endblock %}

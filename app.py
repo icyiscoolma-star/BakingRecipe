@@ -48,7 +48,7 @@ Please modify this recipe based on the following criteria:
         response = claude.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=1500,
-            system="You are a professional baker and recipe developer. The user will give you a recipe and modification criteria. Return a modified version of the recipe that satisfies all the criteria. Format your response as: recipe name on the first line, then '## Ingredients' section, then '## Instructions' section. Keep the same general structure as the original recipe.",
+            system="You are a professional baker and recipe developer. The user will give you a recipe and modification criteria. Return a modified version of the recipe that satisfies all the criteria. Format your response as: '## Original Name' section (the name of the original recipe on one line), then the modified recipe as: recipe name on its own line, then '## Ingredients' section, then '## Instructions' section. Keep the same general structure as the original recipe.",
             messages=[{"role": "user", "content": user_message}],
         )
         return response.content[0].text
@@ -96,35 +96,74 @@ def split_recipe_text(text):
 
 
 def parse_ai_recipe(ai_text):
-    """Parse Claude's response into recipe name, ingredients, and instructions."""
+    """Parse Claude's response into original name, modified name, ingredients, and instructions."""
     lines = ai_text.strip().split("\n")
 
-    recipe_name = lines[0].strip().strip("#").strip()
-
+    original_name = ""
+    recipe_name = ""
     ingredients = ""
     instructions = ""
     current_section = None
 
-    for line in lines[1:]:
+    for line in lines:
         stripped = line.strip()
-        if stripped.lower().startswith("## ingredients"):
+        if stripped.lower().startswith("## original name"):
+            current_section = "original_name"
+            continue
+        elif stripped.lower().startswith("## ingredients"):
             current_section = "ingredients"
             continue
         elif stripped.lower().startswith("## instructions"):
             current_section = "instructions"
             continue
 
-        if current_section == "ingredients":
+        if current_section == "original_name":
+            if stripped:
+                original_name = stripped.strip("#").strip()
+                current_section = "modified_name"
+            continue
+        elif current_section == "modified_name":
+            if stripped and not stripped.startswith("##"):
+                recipe_name = stripped.strip("#").strip()
+                current_section = None
+            continue
+        elif current_section == "ingredients":
             ingredients += line + "\n"
         elif current_section == "instructions":
             instructions += line + "\n"
 
-    return recipe_name, ingredients.strip(), instructions.strip()
+    # Fallback: if no original name found, use modified name
+    if not original_name:
+        original_name = recipe_name
+    if not recipe_name:
+        recipe_name = lines[0].strip().strip("#").strip() if lines else "Modified Recipe"
+
+    return original_name, recipe_name, ingredients.strip(), instructions.strip()
 
 
 @app.route("/")
 def home():
     return render_template("home.html")
+
+
+@app.route("/history")
+def history():
+    modifications = []
+    if supabase:
+        result = supabase.table("modifications").select("*, recipes!modifications_original_recipe_id_fkey(recipe_name)").order("created_at", desc=True).execute()
+        for row in (result.data or []):
+            recipe_info = row.get("recipes", {}) or {}
+            modifications.append({
+                "id": row["id"],
+                "recipe_name": recipe_info.get("recipe_name", "Untitled Recipe"),
+                "created_at": row.get("created_at", ""),
+                "allergies": row.get("allergies", ""),
+                "taste_preferences": row.get("taste_preferences", ""),
+                "ingredient_limitations": row.get("ingredient_limitations", ""),
+                "equipment_limitations": row.get("equipment_limitations", ""),
+                "source_type": row.get("source_type", ""),
+            })
+    return render_template("history.html", modifications=modifications)
 
 
 @app.route("/modify")
@@ -148,14 +187,30 @@ def submit():
             else:
                 recipe_text = recipe_text or f"[Uploaded image: {recipe_file.filename}]"
         recipe_name = "Uploaded Recipe"
+        # Split raw recipe text into ingredients and instructions
+        ingredients, instructions = split_recipe_text(recipe_text)
     else:
-        typed = request.form.get("typed_recipe", "").strip()
+        # Create mode — structured fields
+        recipe_title = request.form.get("recipe_title", "").strip()
+        recipe_ingredients = request.form.get("recipe_ingredients", "").strip()
+        recipe_instructions = request.form.get("recipe_instructions", "").strip()
         recipe_url = request.form.get("recipe_url", "").strip()
-        recipe_text = typed or (f"[Recipe from URL: {recipe_url}]" if recipe_url else "")
-        recipe_name = "Created Recipe"
 
-    # Split raw recipe text into ingredients and instructions
-    ingredients, instructions = split_recipe_text(recipe_text)
+        if recipe_title or recipe_ingredients or recipe_instructions:
+            recipe_name = recipe_title or "Untitled Recipe"
+            ingredients = recipe_ingredients
+            instructions = recipe_instructions
+            recipe_text = f"{recipe_name}\n\nIngredients:\n{ingredients}\n\nInstructions:\n{instructions}"
+        elif recipe_url:
+            recipe_name = "Recipe from URL"
+            recipe_text = f"[Recipe from URL: {recipe_url}]"
+            ingredients = recipe_text
+            instructions = ""
+        else:
+            recipe_name = "Created Recipe"
+            recipe_text = ""
+            ingredients = ""
+            instructions = ""
 
     # Collect criteria
     allergies_list = request.form.getlist("allergies")
@@ -182,7 +237,10 @@ def submit():
     ai_result = modify_recipe_with_ai(recipe_text, allergies, taste_preferences, ingredient_limitations, equipment_limitations)
 
     if ai_result:
-        mod_name, mod_ingredients, mod_instructions = parse_ai_recipe(ai_result)
+        ai_original_name, mod_name, mod_ingredients, mod_instructions = parse_ai_recipe(ai_result)
+        # For upload mode, use Claude's extracted name for the original recipe
+        if mode == "upload" and ai_original_name:
+            recipe_name = ai_original_name
     else:
         mod_name = f"Modified {recipe_name}"
         mod_ingredients = f"[AI unavailable — placeholder]\n\nOriginal:\n{ingredients}"

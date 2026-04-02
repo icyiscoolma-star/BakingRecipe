@@ -28,7 +28,20 @@
 <div class="create-row">
     <div class="create-column">
         <h2>Type It In</h2>
-        <textarea id="type-recipe" name="typed_recipe" class="create-textarea" placeholder="Type your recipe here..."></textarea>
+        <div class="structured-fields">
+            <div class="structured-field">
+                <label for="recipe-title">Recipe Title</label>
+                <input type="text" id="recipe-title" name="recipe_title" class="structured-input" placeholder="e.g. Classic Chocolate Chip Cookies">
+            </div>
+            <div class="structured-field">
+                <label for="recipe-ingredients">Ingredients</label>
+                <textarea id="recipe-ingredients" name="recipe_ingredients" class="structured-textarea" placeholder="List each ingredient on its own line..."></textarea>
+            </div>
+            <div class="structured-field">
+                <label for="recipe-instructions">Instructions</label>
+                <textarea id="recipe-instructions" name="recipe_instructions" class="structured-textarea" placeholder="List each step on its own line..."></textarea>
+            </div>
+        </div>
     </div>
 </div>
 

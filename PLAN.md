@@ -393,6 +393,85 @@ CREATE TABLE chat_messages (
 
 ---
 
+## Feature 15: My Cookbook — Custom Recipe Collections
+
+**Files:** `templates/cookbook.html` (new), `templates/cookbook_view.html` (new), `static/css/style.css` (append), `static/js/cookbook.js` (new), `app.py` (add routes)
+
+### Supabase
+```sql
+CREATE TABLE cookbooks (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    cover_color TEXT DEFAULT '#5d4037',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE cookbook_recipes (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    cookbook_id UUID REFERENCES cookbooks(id) NOT NULL,
+    modification_id UUID REFERENCES modifications(id) NOT NULL,
+    sort_order INTEGER DEFAULT 0,
+    personal_notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+### Frontend — Cookbook Manager (`/cookbooks`)
+- `cookbook.html` — Extends base. Grid of cookbook cards, each showing:
+  - Cookbook name, description, recipe count, and a colored cover/spine
+  - "Open", "Edit", and "Delete" actions
+- "Create New Cookbook" button opens an inline form: name, description, cover color picker
+- Drag-and-drop reordering of cookbooks (optional enhancement)
+
+### Frontend — Cookbook View (`/cookbooks/<cookbook_id>`)
+- `cookbook_view.html` — Extends base. Styled like an open book / table of contents:
+  - Cookbook title and description at the top
+  - Numbered list of recipes with name, dietary tags, and date added
+  - Each recipe expands on click to show full ingredients + instructions inline
+  - Personal notes field per recipe (editable, auto-saves)
+  - "Remove from Cookbook" button per recipe
+  - "Add Recipes" button → modal/dropdown showing favorited or all past recipes to add
+- "Export as PDF" button at the top
+
+### Frontend — Add to Cookbook (from Results Page)
+- On the results page, add a "Add to Cookbook" button next to the existing favorite/share buttons
+- Clicking it shows a dropdown of existing cookbooks + "Create New Cookbook" option
+- Selecting a cookbook adds the current modification to that cookbook with a success toast
+
+### Backend
+- `GET /cookbooks` — Lists all cookbooks with recipe counts
+- `POST /api/cookbooks` — Creates a new cookbook, returns the new cookbook object
+- `GET /cookbooks/<cookbook_id>` — Fetches cookbook details + all recipes (joined with modifications and recipes tables), ordered by `sort_order`
+- `POST /api/cookbooks/<cookbook_id>/add` — Receives `{modification_id}`, adds recipe to cookbook
+- `DELETE /api/cookbooks/<cookbook_id>/recipes/<recipe_id>` — Removes a recipe from the cookbook
+- `PUT /api/cookbooks/<cookbook_id>/recipes/<recipe_id>` — Updates personal notes or sort order
+- `DELETE /api/cookbooks/<cookbook_id>` — Deletes a cookbook (not the recipes themselves)
+- `GET /cookbooks/<cookbook_id>/export` — Generates a PDF of the cookbook
+
+### PDF Export
+- Use a Python library (`weasyprint` or `fpdf2`) to generate the PDF server-side
+- PDF layout:
+  - **Cover page:** Cookbook name, description, number of recipes, date generated
+  - **Table of contents:** Numbered recipe list with page numbers
+  - **Recipe pages:** One recipe per page — name, dietary tags, ingredients (left column), instructions (right column), personal notes at bottom
+  - **Footer:** "Made with BakeShift" + page number
+- Return the PDF as a file download
+
+### Navigation
+- Add "My Cookbooks" link to the navbar in `base.html`
+
+### Test
+- Create a cookbook → see it on `/cookbooks` page
+- Open cookbook → see empty state with "Add Recipes" prompt
+- Go to a results page → click "Add to Cookbook" → select cookbook → success toast
+- Open cookbook again → recipe appears with full details
+- Add personal notes → refresh → notes persist
+- Click "Export as PDF" → PDF downloads with cover page, table of contents, and recipe pages
+- Delete a recipe from cookbook → recipe removed but still exists in history
+
+---
+
 ## Design 1: Custom Typography
 
 **Files:** `templates/base.html` (add Google Fonts link), `static/css/style.css` (update font rules)
@@ -602,6 +681,7 @@ CREATE TABLE chat_messages (
 | Feature 12 | Dietary presets | One-click preset buttons on modify page |
 | Feature 13 | Side-by-side diff | Highlighted changes between original and modified |
 | Feature 14 | AI recipe image generation | AI-generated photo of the recipe |
+| Feature 15 | My Cookbook — custom recipe collections | Create cookbooks, add recipes, export PDF |
 | Design 1 | Custom typography (Google Fonts) | Serif headings, clean body text |
 | Design 2 | Illustrated SVG icons | Hand-drawn icons replace emoji |
 | Design 3 | Animated transitions | Fade/slide entrance, scroll animations |
