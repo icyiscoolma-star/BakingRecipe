@@ -19,6 +19,8 @@ document.addEventListener("DOMContentLoaded", function () {
         img.src = URL.createObjectURL(file);
         preview.innerHTML = "";
         preview.appendChild(img);
+      } else if (file.type === "application/pdf") {
+        preview.textContent = "PDF selected: " + file.name + " — text will be extracted on submit.";
       } else {
         const reader = new FileReader();
         reader.onload = function (e) {
@@ -68,8 +70,10 @@ document.addEventListener("DOMContentLoaded", function () {
       })
         .then(function (res) { return res.json(); })
         .then(function (data) {
+          var content = data.content || data.error;
           preview.classList.add("active");
-          preview.textContent = data.content || data.error;
+          preview.textContent = content;
+          document.getElementById("fetched-recipe-content").value = content;
         })
         .catch(function () {
           preview.classList.add("active");

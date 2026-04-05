@@ -17,7 +17,7 @@
 
     <div class="upload-input-group">
         <label for="file-upload">Upload a file:</label>
-        <input type="file" id="file-upload" name="recipe_file" accept=".txt,image/*" class="file-input">
+        <input type="file" id="file-upload" name="recipe_file" accept=".txt,.pdf,image/*" class="file-input">
         <div id="upload-preview" class="upload-preview"></div>
     </div>
 </div>
@@ -52,6 +52,7 @@
             <input type="url" id="recipe-url" name="recipe_url" placeholder="https://example.com/recipe" class="url-input">
             <button type="button" id="fetch-url-btn" class="fetch-btn">Fetch</button>
         </div>
+        <input type="hidden" id="fetched-recipe-content" name="fetched_recipe_content" value="">
         <div id="url-preview" class="url-preview"></div>
     </div>
 

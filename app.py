@@ -1,8 +1,12 @@
 import os
+import io
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from dotenv import load_dotenv
 from supabase import create_client
 import anthropic
+import requests
+from bs4 import BeautifulSoup
+from PyPDF2 import PdfReader
 
 load_dotenv()
 
@@ -184,6 +188,14 @@ def submit():
         if recipe_file and recipe_file.filename:
             if recipe_file.filename.endswith(".txt"):
                 recipe_text = recipe_file.read().decode("utf-8", errors="replace")
+            elif recipe_file.filename.lower().endswith(".pdf"):
+                try:
+                    reader = PdfReader(io.BytesIO(recipe_file.read()))
+                    pages = [page.extract_text() or "" for page in reader.pages]
+                    recipe_text = "\n".join(pages).strip()
+                except Exception as e:
+                    print(f"PDF extraction error: {e}")
+                    recipe_text = recipe_text or f"[Could not extract text from PDF: {recipe_file.filename}]"
             else:
                 recipe_text = recipe_text or f"[Uploaded image: {recipe_file.filename}]"
         recipe_name = "Uploaded Recipe"
@@ -202,10 +214,16 @@ def submit():
             instructions = recipe_instructions
             recipe_text = f"{recipe_name}\n\nIngredients:\n{ingredients}\n\nInstructions:\n{instructions}"
         elif recipe_url:
-            recipe_name = "Recipe from URL"
-            recipe_text = f"[Recipe from URL: {recipe_url}]"
-            ingredients = recipe_text
-            instructions = ""
+            fetched_content = request.form.get("fetched_recipe_content", "").strip()
+            if fetched_content:
+                recipe_text = fetched_content
+                recipe_name = "Recipe from URL"
+                ingredients, instructions = split_recipe_text(recipe_text)
+            else:
+                recipe_name = "Recipe from URL"
+                recipe_text = f"[Recipe from URL: {recipe_url}]"
+                ingredients = recipe_text
+                instructions = ""
         else:
             recipe_name = "Created Recipe"
             recipe_text = ""
@@ -429,19 +447,38 @@ def fetch_url():
     if not url:
         return jsonify({"error": "No URL provided."}), 400
 
+    # Fetch the page content
+    try:
+        resp = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0 (compatible; BakeShift/1.0)"})
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, "html.parser")
+
+        # Remove script/style tags
+        for tag in soup(["script", "style", "nav", "footer", "header"]):
+            tag.decompose()
+
+        page_text = soup.get_text(separator="\n", strip=True)
+        # Trim to a reasonable size for Claude
+        page_text = page_text[:8000]
+    except Exception as e:
+        print(f"URL fetch error: {e}")
+        return jsonify({"content": f"Could not fetch the page. Please check the URL and try again."})
+
+    # Send to Claude to extract the recipe
     if claude:
         try:
             response = claude.messages.create(
                 model="claude-sonnet-4-20250514",
-                max_tokens=500,
-                system="The user has pasted a recipe URL. We cannot fetch the URL content yet. Acknowledge the URL and let them know the recipe will need to be typed or pasted manually for now. Be brief and friendly.",
-                messages=[{"role": "user", "content": f"I pasted this recipe URL: {url}"}],
+                max_tokens=1500,
+                system="You are a recipe extraction assistant. The user has fetched a webpage. Extract the recipe from the page text and return it in a clean format: recipe name on the first line, then 'Ingredients:' section, then 'Instructions:' section. If there is no recipe on the page, say so briefly.",
+                messages=[{"role": "user", "content": f"Extract the recipe from this page:\n\n{page_text}"}],
             )
             return jsonify({"content": response.content[0].text})
         except Exception as e:
             print(f"Claude API error in fetch_url: {e}")
 
-    return jsonify({"content": f"URL fetching is not available yet. Please copy and paste the recipe text from {url} into the 'Type It In' box above."})
+    # Fallback: return raw extracted text
+    return jsonify({"content": page_text[:3000]})
 
 
 if __name__ == "__main__":
