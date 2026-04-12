@@ -24,13 +24,23 @@
                 <span class="history-tag history-tag--taste">{{ tag }}</span>
                 {% endfor %}
             {% endif %}
+            {% if item.ingredient_limitations %}
+                {% for tag in item.ingredient_limitations.split(', ') %}
+                <span class="history-tag history-tag--ingred">{{ tag }}</span>
+                {% endfor %}
+            {% endif %}
             {% if item.equipment_limitations %}
                 {% for tag in item.equipment_limitations.split(', ') %}
                 <span class="history-tag history-tag--equip">{{ tag }}</span>
                 {% endfor %}
             {% endif %}
         </div>
-        <p class="history-card-source">{{ item.source_type }}</p>
+        <div class="history-card-footer">
+            <p class="history-card-source">{{ item.source_type }}</p>
+            <button class="history-export-btn" data-id="{{ item.id }}" title="Export Recipe">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+            </button>
+        </div>
     </a>
     {% endfor %}
 </div>
@@ -54,6 +64,15 @@ document.addEventListener("DOMContentLoaded", function () {
             var name = card.querySelector(".history-card-name").textContent.toLowerCase();
             var tags = card.querySelector(".history-card-tags").textContent.toLowerCase();
             card.style.display = (name.includes(query) || tags.includes(query)) ? "" : "none";
+        });
+    });
+
+    document.querySelectorAll(".history-export-btn").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var id = this.getAttribute("data-id");
+            window.open("/results/" + id + "?print=1", "_blank");
         });
     });
 });

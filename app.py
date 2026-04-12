@@ -1,5 +1,6 @@
 import os
 import io
+import json
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from dotenv import load_dotenv
 from supabase import create_client
@@ -24,7 +25,7 @@ if anthropic_key:
     claude = anthropic.Anthropic(api_key=anthropic_key)
 
 
-def modify_recipe_with_ai(recipe_text, allergies, taste_preferences, ingredient_limitations, equipment_limitations):
+def modify_recipe_with_ai(recipe_text, allergies, taste_preferences, ingredient_limitations, equipment_limitations, scaling="1"):
     """Call Claude API to generate a modified recipe based on criteria."""
     if not claude:
         return None
@@ -38,6 +39,8 @@ def modify_recipe_with_ai(recipe_text, allergies, taste_preferences, ingredient_
         criteria_parts.append(f"Ingredient limitations: {ingredient_limitations}")
     if equipment_limitations:
         criteria_parts.append(f"Equipment limitations: {equipment_limitations}")
+    if scaling and scaling not in ("1", "1x"):
+        criteria_parts.append(f"Recipe scaling: {scaling}")
 
     criteria_text = "\n".join(criteria_parts) if criteria_parts else "No specific criteria provided."
 
@@ -52,7 +55,7 @@ Please modify this recipe based on the following criteria:
         response = claude.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=1500,
-            system="You are a professional baker and recipe developer. The user will give you a recipe and modification criteria. Return a modified version of the recipe that satisfies all the criteria. Format your response as: '## Original Name' section (the name of the original recipe on one line), then the modified recipe as: recipe name on its own line, then '## Ingredients' section, then '## Instructions' section. Keep the same general structure as the original recipe.",
+            system="You are a professional baker and recipe developer. The user will give you a recipe and modification criteria. Return a modified version of the recipe that satisfies all the criteria. Format your response as: '## Original Name' section (the name of the original recipe on one line), then the modified recipe as: recipe name on its own line, then '## Ingredients' section, then '## Instructions' section, then '## Changes' section. The Changes section should be a concise bulleted list of every specific change you made and why (e.g., '- Replaced butter with coconut oil (dairy-free)', '- Reduced sugar by half (less sweet preference)'). Keep the same general structure as the original recipe.",
             messages=[{"role": "user", "content": user_message}],
         )
         return response.content[0].text
@@ -100,13 +103,14 @@ def split_recipe_text(text):
 
 
 def parse_ai_recipe(ai_text):
-    """Parse Claude's response into original name, modified name, ingredients, and instructions."""
+    """Parse Claude's response into original name, modified name, ingredients, instructions, and change summary."""
     lines = ai_text.strip().split("\n")
 
     original_name = ""
     recipe_name = ""
     ingredients = ""
     instructions = ""
+    change_summary = ""
     current_section = None
 
     for line in lines:
@@ -119,6 +123,9 @@ def parse_ai_recipe(ai_text):
             continue
         elif stripped.lower().startswith("## instructions"):
             current_section = "instructions"
+            continue
+        elif stripped.lower().startswith("## changes"):
+            current_section = "changes"
             continue
 
         if current_section == "original_name":
@@ -135,6 +142,8 @@ def parse_ai_recipe(ai_text):
             ingredients += line + "\n"
         elif current_section == "instructions":
             instructions += line + "\n"
+        elif current_section == "changes":
+            change_summary += line + "\n"
 
     # Fallback: if no original name found, use modified name
     if not original_name:
@@ -142,7 +151,7 @@ def parse_ai_recipe(ai_text):
     if not recipe_name:
         recipe_name = lines[0].strip().strip("#").strip() if lines else "Modified Recipe"
 
-    return original_name, recipe_name, ingredients.strip(), instructions.strip()
+    return original_name, recipe_name, ingredients.strip(), instructions.strip(), change_summary.strip()
 
 
 @app.route("/")
@@ -172,63 +181,98 @@ def history():
 
 @app.route("/modify")
 def modify():
-    mode = request.args.get("mode", "upload")
-    return render_template("modify.html", mode=mode)
+    return render_template("modify.html")
 
 
 @app.route("/submit", methods=["POST"])
 def submit():
-    mode = request.form.get("mode", "upload")
+    # Collect all possible inputs — user may use any combination
+    recipe_title = request.form.get("recipe_title", "").strip()
+    recipe_ingredients = request.form.get("recipe_ingredients", "").strip()
+    recipe_instructions = request.form.get("recipe_instructions", "").strip()
+    pasted_text = request.form.get("recipe_text", "").strip()
+    recipe_url = request.form.get("recipe_url", "").strip()
+    fetched_content = request.form.get("fetched_recipe_content", "").strip()
 
-    # Collect recipe content based on mode
-    if mode == "upload":
-        recipe_text = request.form.get("recipe_text", "").strip()
-        # If a file was uploaded, read its text content
-        recipe_file = request.files.get("recipe_file")
-        if recipe_file and recipe_file.filename:
-            if recipe_file.filename.endswith(".txt"):
-                recipe_text = recipe_file.read().decode("utf-8", errors="replace")
-            elif recipe_file.filename.lower().endswith(".pdf"):
-                try:
-                    reader = PdfReader(io.BytesIO(recipe_file.read()))
-                    pages = [page.extract_text() or "" for page in reader.pages]
-                    recipe_text = "\n".join(pages).strip()
-                except Exception as e:
-                    print(f"PDF extraction error: {e}")
-                    recipe_text = recipe_text or f"[Could not extract text from PDF: {recipe_file.filename}]"
-            else:
-                recipe_text = recipe_text or f"[Uploaded image: {recipe_file.filename}]"
-        recipe_name = "Uploaded Recipe"
-        # Split raw recipe text into ingredients and instructions
-        ingredients, instructions = split_recipe_text(recipe_text)
-    else:
-        # Create mode — structured fields
-        recipe_title = request.form.get("recipe_title", "").strip()
-        recipe_ingredients = request.form.get("recipe_ingredients", "").strip()
-        recipe_instructions = request.form.get("recipe_instructions", "").strip()
-        recipe_url = request.form.get("recipe_url", "").strip()
-
-        if recipe_title or recipe_ingredients or recipe_instructions:
-            recipe_name = recipe_title or "Untitled Recipe"
-            ingredients = recipe_ingredients
-            instructions = recipe_instructions
-            recipe_text = f"{recipe_name}\n\nIngredients:\n{ingredients}\n\nInstructions:\n{instructions}"
-        elif recipe_url:
-            fetched_content = request.form.get("fetched_recipe_content", "").strip()
-            if fetched_content:
-                recipe_text = fetched_content
-                recipe_name = "Recipe from URL"
-                ingredients, instructions = split_recipe_text(recipe_text)
-            else:
-                recipe_name = "Recipe from URL"
-                recipe_text = f"[Recipe from URL: {recipe_url}]"
-                ingredients = recipe_text
-                instructions = ""
+    # Read uploaded file (txt / pdf / image) into text if present
+    file_text = ""
+    file_note = ""
+    recipe_file = request.files.get("recipe_file")
+    if recipe_file and recipe_file.filename:
+        fname = recipe_file.filename
+        if fname.lower().endswith(".txt"):
+            file_text = recipe_file.read().decode("utf-8", errors="replace")
+        elif fname.lower().endswith(".pdf"):
+            try:
+                reader = PdfReader(io.BytesIO(recipe_file.read()))
+                pages = [page.extract_text() or "" for page in reader.pages]
+                file_text = "\n".join(pages).strip()
+            except Exception as e:
+                print(f"PDF extraction error: {e}")
+                file_note = f"[Could not extract text from PDF: {fname}]"
         else:
-            recipe_name = "Created Recipe"
-            recipe_text = ""
-            ingredients = ""
-            instructions = ""
+            file_note = f"[Uploaded image: {fname}]"
+
+    # Figure out the recipe name, structured fields, and full text.
+    # Priority for name: typed title > fetched URL first line > pasted first line > file > URL > default.
+    has_structured = bool(recipe_title or recipe_ingredients or recipe_instructions)
+
+    if has_structured:
+        recipe_name = recipe_title or "Untitled Recipe"
+        ingredients = recipe_ingredients
+        instructions = recipe_instructions
+        recipe_text = f"{recipe_name}\n\nIngredients:\n{ingredients}\n\nInstructions:\n{instructions}"
+        # Append any additional supporting content the user provided
+        extras = []
+        if fetched_content:
+            extras.append(f"Additional context from URL:\n{fetched_content}")
+        elif recipe_url:
+            extras.append(f"Reference URL: {recipe_url}")
+        if pasted_text:
+            extras.append(f"Additional pasted text:\n{pasted_text}")
+        if file_text:
+            extras.append(f"Additional text from uploaded file:\n{file_text}")
+        elif file_note:
+            extras.append(file_note)
+        if extras:
+            recipe_text += "\n\n" + "\n\n".join(extras)
+    else:
+        # Pick the first non-structured source that has content
+        if fetched_content:
+            raw = fetched_content
+            default_name = "Recipe from URL"
+        elif pasted_text:
+            raw = pasted_text
+            default_name = "Pasted Recipe"
+        elif file_text:
+            raw = file_text
+            default_name = "Uploaded Recipe"
+        elif recipe_url:
+            raw = f"[Recipe from URL: {recipe_url}]"
+            default_name = "Recipe from URL"
+        elif file_note:
+            raw = file_note
+            default_name = "Uploaded Recipe"
+        else:
+            raw = ""
+            default_name = "Created Recipe"
+
+        recipe_text = raw
+        first_line = raw.split("\n", 1)[0].strip() if raw else ""
+        recipe_name = first_line if first_line and not first_line.startswith("[") else default_name
+        ingredients, instructions = split_recipe_text(raw) if raw else ("", "")
+
+    # Source type for history display
+    if has_structured:
+        mode = "create"
+    elif fetched_content or recipe_url:
+        mode = "url"
+    elif file_text or file_note:
+        mode = "upload"
+    elif pasted_text:
+        mode = "paste"
+    else:
+        mode = "create"
 
     # Collect criteria
     allergies_list = request.form.getlist("allergies")
@@ -251,13 +295,16 @@ def submit():
         equipment_list.append(equipment_other)
     equipment_limitations = ", ".join(equipment_list)
 
+    scaling = request.form.get("scaling", "1").strip()
+
     # Call Claude API to generate modified recipe
-    ai_result = modify_recipe_with_ai(recipe_text, allergies, taste_preferences, ingredient_limitations, equipment_limitations)
+    ai_result = modify_recipe_with_ai(recipe_text, allergies, taste_preferences, ingredient_limitations, equipment_limitations, scaling)
+    change_summary = ""
 
     if ai_result:
-        ai_original_name, mod_name, mod_ingredients, mod_instructions = parse_ai_recipe(ai_result)
+        ai_original_name, mod_name, mod_ingredients, mod_instructions, change_summary = parse_ai_recipe(ai_result)
         # For upload mode, use Claude's extracted name for the original recipe
-        if mode == "upload" and ai_original_name:
+        if not has_structured and ai_original_name:
             recipe_name = ai_original_name
     else:
         mod_name = f"Modified {recipe_name}"
@@ -292,6 +339,7 @@ def submit():
             "taste_preferences": taste_preferences,
             "ingredient_limitations": ingredient_limitations,
             "equipment_limitations": equipment_limitations,
+            "change_summary": change_summary,
             "source_type": mode,
         }).execute()
         modification_id = mod_record.data[0]["id"]
@@ -380,7 +428,18 @@ def chat():
         history = chat_rows.data if chat_rows.data else []
 
     # Build system prompt with recipe context
-    system_prompt = "You are a helpful baking assistant. The user is looking at a modified recipe. Help them with follow-up questions — they might ask for further tweaks, substitution ideas, baking tips, or explanations of why a change was made. Keep responses concise and friendly."
+    system_prompt = """You are a helpful baking assistant. The user is looking at a modified recipe. Help them with follow-up questions — they might ask for further tweaks, substitution ideas, baking tips, or explanations of why a change was made. Keep responses concise and friendly.
+
+IMPORTANT: You must ALWAYS respond with valid JSON in one of these two formats:
+
+1. When the user asks for substitutions, alternatives, or options (e.g. "what can I use instead of X", "give me options for Y", "substitute for Z"):
+{"type": "choices", "question": "Short question summarizing what you're offering", "options": [{"label": "Option name", "description": "Brief explanation of this option"}, ...]}
+Provide 2-4 options. Keep labels short (1-3 words) and descriptions to one sentence.
+
+2. For all other messages (questions, tips, explanations, general chat):
+{"type": "message", "content": "Your response text here"}
+
+Always respond with ONLY the JSON object, no other text."""
 
     if original_recipe or modified_recipe or modification:
         context_parts = []
@@ -409,7 +468,7 @@ def chat():
     messages.append({"role": "user", "content": message})
 
     # Call Claude API
-    reply = "Sorry, I couldn't process your message right now. Please try again."
+    reply = '{"type": "message", "content": "Sorry, I couldn\'t process your message right now. Please try again."}'
     if claude:
         try:
             response = claude.messages.create(
@@ -421,7 +480,7 @@ def chat():
             reply = response.content[0].text
         except Exception as e:
             print(f"Claude chat API error: {e}")
-            reply = "Sorry, something went wrong. Please try again."
+            reply = '{"type": "message", "content": "Sorry, something went wrong. Please try again."}'
 
     # Save messages to Supabase
     if supabase and modification_id != "demo":
@@ -437,7 +496,104 @@ def chat():
             "content": reply,
         }).execute()
 
-    return jsonify({"reply": reply})
+    # Parse the JSON reply for the frontend
+    try:
+        parsed = json.loads(reply)
+    except (json.JSONDecodeError, TypeError):
+        parsed = {"type": "message", "content": reply}
+
+    return jsonify(parsed)
+
+
+@app.route("/api/chat/apply", methods=["POST"])
+def chat_apply():
+    data = request.get_json()
+    modification_id = data.get("modification_id", "")
+    choice_label = data.get("choice_label", "").strip()
+    question = data.get("question", "").strip()
+
+    if not choice_label or not modification_id:
+        return jsonify({"error": "Missing data."}), 400
+
+    if not supabase or not claude:
+        return jsonify({"error": "Service unavailable."}), 503
+
+    # Load current modified recipe and context
+    mod = supabase.table("modifications").select("*").eq("id", modification_id).execute()
+    modification = mod.data[0] if mod.data else {}
+    if not modification:
+        return jsonify({"error": "Modification not found."}), 404
+
+    modr = supabase.table("recipes").select("*").eq("id", modification.get("modified_recipe_id")).execute()
+    modified_recipe = modr.data[0] if modr.data else {}
+
+    # Ask Claude to apply the choice to the recipe
+    apply_prompt = f"""Here is the current modified recipe:
+
+Name: {modified_recipe.get('recipe_name', '')}
+
+Ingredients:
+{modified_recipe.get('ingredients', '')}
+
+Instructions:
+{modified_recipe.get('instructions', '')}
+
+The user was asked: "{question}"
+They chose: "{choice_label}"
+
+Apply this choice to the recipe. Return ONLY valid JSON in this format:
+{{"ingredients": "updated full ingredients list", "instructions": "updated full instructions list", "change_description": "short description of what changed, e.g. Substituted butter → coconut oil"}}
+
+Keep everything else in the recipe the same. Only modify what is necessary to apply the chosen option."""
+
+    try:
+        response = claude.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=1500,
+            system="You are a recipe modification assistant. Apply the user's chosen substitution to the recipe. Return only valid JSON with the updated recipe sections.",
+            messages=[{"role": "user", "content": apply_prompt}],
+        )
+        result = json.loads(response.content[0].text)
+    except (json.JSONDecodeError, TypeError):
+        return jsonify({"error": "Failed to parse AI response."}), 500
+    except Exception as e:
+        print(f"Claude apply API error: {e}")
+        return jsonify({"error": "AI request failed."}), 500
+
+    new_ingredients = result.get("ingredients", modified_recipe.get("ingredients", ""))
+    new_instructions = result.get("instructions", modified_recipe.get("instructions", ""))
+    change_desc = result.get("change_description", f"Applied: {choice_label}")
+
+    # Update the modified recipe in Supabase
+    supabase.table("recipes").update({
+        "ingredients": new_ingredients,
+        "instructions": new_instructions,
+    }).eq("id", modification.get("modified_recipe_id")).execute()
+
+    # Append to chat_modifications log
+    existing_log = modification.get("chat_modifications", "") or ""
+    new_log = (existing_log + "\n" + change_desc).strip() if existing_log else change_desc
+    supabase.table("modifications").update({
+        "chat_modifications": new_log,
+    }).eq("id", modification_id).execute()
+
+    # Save the choice as a chat message pair
+    supabase.table("chat_messages").insert({
+        "modification_id": modification_id,
+        "role": "user",
+        "content": f"Apply: {choice_label}",
+    }).execute()
+    supabase.table("chat_messages").insert({
+        "modification_id": modification_id,
+        "role": "assistant",
+        "content": json.dumps({"type": "message", "content": f"Done! I've updated the recipe: {change_desc}"}),
+    }).execute()
+
+    return jsonify({
+        "ingredients": new_ingredients,
+        "instructions": new_instructions,
+        "change_description": change_desc,
+    })
 
 
 @app.route("/api/fetch-url", methods=["POST"])

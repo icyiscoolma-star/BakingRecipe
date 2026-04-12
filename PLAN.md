@@ -195,12 +195,20 @@ CREATE TABLE chat_messages (
 
 ### Backend — Update `POST /submit`
 - After collecting the original recipe + criteria, call the Claude API to generate the modified recipe
-- **System prompt:** You are a professional baker and recipe developer. The user will give you a recipe and modification criteria. Return a modified version of the recipe that satisfies all the criteria. Format your response as: recipe name on the first line, then "## Ingredients" section, then "## Instructions" section. Keep the same general structure as the original recipe.
+- **System prompt:** You are a professional baker and recipe developer. The user will give you a recipe and modification criteria. Return a modified version of the recipe that satisfies all the criteria. Format your response as: recipe name on the first line, then "## Ingredients" section, then "## Instructions" section, then "## Changes" section. The Changes section should be a concise bulleted list of every specific change you made and why (e.g., "- Replaced butter with coconut oil (dairy-free)", "- Reduced sugar by half (less sweet preference)", "- Removed step 4 (stand mixer) and replaced with hand mixing"). Keep the same general structure as the original recipe.
 - **User message:** Include the original recipe text + all criteria (allergies, taste, ingredient limitations, equipment limitations)
 - **Model:** `claude-sonnet-4-20250514` (fast, cost-effective for recipe tasks)
-- Parse Claude's response to extract recipe name, ingredients, and instructions
+- Parse Claude's response to extract recipe name, ingredients, instructions, and change summary
 - Save the AI-generated modified recipe to the `recipes` table (replacing the old placeholder text)
+- Save the change summary to the `modifications` table in a `change_summary` text field (new column):
+  ```sql
+  ALTER TABLE modifications ADD COLUMN change_summary TEXT DEFAULT '';
+  ```
 - If the API call fails, fall back to the placeholder text so the app doesn't break
+
+### Frontend — Criteria Section Update
+- On the results page, display the `change_summary` in the Modification Criteria card under a "What Changed" subheading, below the user's original criteria
+- Each bullet from the change summary is rendered as a list item so users can see exactly what was swapped, removed, or adjusted and why
 
 ### Frontend — Update `POST /api/fetch-url`
 - When user pastes a URL on the Create screen and clicks "Fetch", send the URL to the backend
@@ -277,20 +285,88 @@ CREATE TABLE chat_messages (
 
 ---
 
-## Feature 9: Recipe Scaling
+## Feature 8.5: Interactive Chat Suggestions & Live Recipe Updates
 
-**Files:** `templates/results.html` (add scaling controls), `static/js/results.js` (new or extend), `static/css/style.css` (append)
+**Files:** `app.py` (update chat route + add apply route), `templates/results.html` (update chat panel + criteria card), `static/js/chat.js` (extend), `static/css/style.css` (append)
 
-### Frontend
-- Add a scaling selector (0.5x, 1x, 2x, 3x) above the modified recipe card
-- When user selects a multiplier, JavaScript parses ingredient quantities (numbers, fractions) and multiplies them
-- Display the scaled ingredients inline, with the original quantities shown in parentheses
-- Instructions remain unchanged (only ingredients scale)
+### Problem
+Currently, when the user asks the chat for suggestions (e.g., "What can I substitute for butter?"), Claude returns a long text blurb. The user has to manually interpret and apply changes. The modification criteria section also looks bare after the initial recipe generation.
+
+### Frontend — Multi-Choice Chat Responses
+- When the chat detects that Claude's response contains options/suggestions, parse them into clickable choice cards instead of displaying raw text
+- Each choice card shows: a short label (e.g., "Coconut oil") and a brief description (e.g., "Same ratio, adds subtle sweetness")
+- User clicks a choice → that selection is sent back to Claude as a follow-up message → Claude returns the updated ingredient list or instruction change
+- If the response is conversational (not a list of options), display it as a normal chat bubble
+
+### Backend — Structured Responses
+- Update the chat system prompt to instruct Claude to return suggestions in a structured JSON format when the user asks for alternatives or options:
+  ```json
+  {"type": "choices", "question": "Which butter substitute?", "options": [
+    {"label": "Coconut oil", "description": "Same ratio, adds subtle sweetness"},
+    {"label": "Applesauce", "description": "Reduces fat, adds moisture"},
+    {"label": "Greek yogurt", "description": "Keeps richness, adds tang"}
+  ]}
+  ```
+- If the response is not a choice, return `{"type": "message", "content": "..."}` as before
+- `POST /api/chat/apply` — Receives `{modification_id, choice_label}`, calls Claude to regenerate the relevant section of the modified recipe with the chosen substitution applied, updates the `recipes` row for the modified recipe in Supabase, and returns the updated recipe content
+
+### Frontend — Live Recipe Card Updates
+- When a choice is applied and the backend returns updated recipe content, dynamically update the modified recipe card on the page (ingredients and/or instructions) without a full page reload
+- Show a brief highlight animation on the changed section so the user notices the update
+
+### Frontend — Criteria Section Updates
+- The criteria card already displays the initial `change_summary` from Feature 5 (what Claude changed during the original modification)
+- When a chat-driven modification is applied, append a new entry below the initial changes documenting the chat change (e.g., "Chat: Substituted butter → coconut oil")
+- Save the updated criteria back to the `modifications` table so it persists on reload
+- This keeps a running log of all changes — both the initial AI modification and subsequent chat-driven tweaks — making the criteria section a complete changelog
+
+### Backend — Criteria Logging
+- `POST /api/chat/apply` also appends to a `chat_modifications` text field on the `modifications` table (new column):
+  ```sql
+  ALTER TABLE modifications ADD COLUMN chat_modifications TEXT DEFAULT '';
+  ```
+- Each applied change is appended as a line: "Substituted butter → coconut oil"
+- The results page loads and displays these alongside the original criteria
 
 ### Test
-- Select 2x → "1 cup butter" becomes "2 cups butter"
-- Select 0.5x → "2 eggs" becomes "1 egg"
+- Ask "What can I use instead of eggs?" → see 3 clickable choice cards instead of a paragraph
+- Click "Flax egg" → modified recipe card updates live with flax egg in the ingredients
+- Criteria section shows new entry: "Chat: Substituted eggs → flax egg"
+- Refresh page → updated recipe and criteria persist
+- Ask a general question like "Why is this recipe good?" → normal chat bubble, no choice cards
+- Multiple chat modifications stack in the criteria section as a change log
+
+---
+
+## Feature 9: Recipe Scaling
+
+**Files:** `templates/results.html` (add scaling controls + inline JS), `app.py` (add `/api/scale` endpoint), `static/css/style.css` (append)
+
+### Frontend — Scaling Limitations Section
+- Add a "Scaling" subsection inside the Modification Criteria card, below the change summary
+- Preset buttons (0.5x, 1x, 2x, 3x) as pill-shaped toggles — active state is highlighted
+- Text input field with a "Scale" button for natural language scaling (e.g., "I want to make a third of the recipe", "make it for 6 people instead of 4")
+- Status line below showing the current scale factor
+
+### Frontend — Ingredient Scaling Logic
+- The modified recipe ingredients `<pre>` stores original text in a `data-original` attribute
+- JavaScript parses ingredient quantities: integers, decimals, fractions (1/2), mixed fractions (1 1/2), and unicode fractions (½, ⅓, ¼, etc.)
+- Scaled values replace originals inline, with the original shown in parentheses (e.g., "2 (was 1) cup butter")
+- Selecting 1x restores the original text exactly
+- Instructions remain unchanged (only ingredients scale)
+
+### Backend — Natural Language Scaling
+- `POST /api/scale` — Receives `{text}`, sends to Claude with a system prompt that instructs it to return only a numeric multiplier
+- Returns `{multiplier: 0.333}` — the frontend applies this multiplier the same way as preset buttons
+- Handles errors gracefully if Claude can't determine a multiplier
+
+### Test
+- Select 2x → "1 cup butter" becomes "2 (was 1) cup butter"
+- Select 0.5x → "2 eggs" becomes "1 (was 2) eggs"
 - Switch back to 1x → original quantities restored
+- Type "I want to make a third of the recipe" → ingredients scale to ~0.333x
+- Type "make it for 8 people instead of 4" → ingredients scale to 2x
+- Fractions like "1/2 cup" and "1 1/2 tsp" scale correctly
 
 ---
 
@@ -675,6 +751,7 @@ CREATE TABLE cookbook_recipes (
 | Feature 6 | AI chat (Claude API in chat route) | Chat gives context-aware baking answers |
 | Feature 7 | Recipe history dashboard | Past modifications browsable |
 | Feature 8 | Print / export recipe | Clean print layout |
+| Feature 8.5 | Interactive chat suggestions & live recipe updates | Choice cards, live recipe edits, criteria changelog |
 | Feature 9 | Recipe scaling | Ingredient quantities adjust by multiplier |
 | Feature 10 | Share recipe | Copyable link with toast notification |
 | Feature 11 | Favorites / save recipes | Heart toggle, favorites filter on history |

@@ -1,8 +1,7 @@
 document.addEventListener("DOMContentLoaded", function () {
   const form = document.getElementById("modify-form");
-  const mode = form.querySelector('input[name="mode"]').value;
 
-  // File upload preview — upload mode
+  // File upload preview
   const fileUpload = document.getElementById("file-upload");
   if (fileUpload) {
     fileUpload.addEventListener("change", function () {
@@ -31,26 +30,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Photo upload preview — create mode
-  const photoUpload = document.getElementById("photo-upload");
-  if (photoUpload) {
-    photoUpload.addEventListener("change", function () {
-      const preview = document.getElementById("photo-preview");
-      const file = this.files[0];
-      if (!file) {
-        preview.classList.remove("active");
-        preview.innerHTML = "";
-        return;
-      }
-      preview.classList.add("active");
-      const img = document.createElement("img");
-      img.src = URL.createObjectURL(file);
-      preview.innerHTML = "";
-      preview.appendChild(img);
-    });
-  }
-
-  // URL fetch — create mode
+  // URL fetch
   const fetchBtn = document.getElementById("fetch-url-btn");
   if (fetchBtn) {
     fetchBtn.addEventListener("click", function () {
@@ -86,26 +66,18 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Form validation
+  // Form validation — require at least one input method
   form.addEventListener("submit", function (e) {
-    if (mode === "upload") {
-      var text = document.getElementById("recipe-text").value.trim();
-      var file = document.getElementById("file-upload").files.length > 0;
-      if (!text && !file) {
-        e.preventDefault();
-        alert("Please paste recipe text or upload a file before submitting.");
-      }
-    } else {
-      var title = document.getElementById("recipe-title").value.trim();
-      var ingredients = document.getElementById("recipe-ingredients").value.trim();
-      var instructions = document.getElementById("recipe-instructions").value.trim();
-      var hasTyped = title || ingredients || instructions;
-      var url = document.getElementById("recipe-url").value.trim();
-      var photo = document.getElementById("photo-upload").files.length > 0;
-      if (!hasTyped && !url && !photo) {
-        e.preventDefault();
-        alert("Please provide a recipe by typing it in, pasting a URL, or uploading a photo.");
-      }
+    var title = document.getElementById("recipe-title").value.trim();
+    var ingredients = document.getElementById("recipe-ingredients").value.trim();
+    var instructions = document.getElementById("recipe-instructions").value.trim();
+    var text = document.getElementById("recipe-text").value.trim();
+    var file = document.getElementById("file-upload").files.length > 0;
+    var url = document.getElementById("recipe-url").value.trim();
+    var hasAny = title || ingredients || instructions || text || file || url;
+    if (!hasAny) {
+      e.preventDefault();
+      alert("Please provide a recipe by typing it in, pasting text, uploading a file, or fetching a URL.");
     }
   });
 });

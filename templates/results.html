@@ -10,11 +10,11 @@
             <h3>{{ modified_recipe.recipe_name }}</h3>
             <div class="result-card-section">
                 <h4>Ingredients</h4>
-                <pre class="result-text">{{ modified_recipe.ingredients }}</pre>
+                <pre id="mod-ingredients" class="result-text">{{ modified_recipe.ingredients }}</pre>
             </div>
             <div class="result-card-section">
                 <h4>Instructions</h4>
-                <pre class="result-text">{{ modified_recipe.instructions }}</pre>
+                <pre id="mod-instructions" class="result-text">{{ modified_recipe.instructions }}</pre>
             </div>
         </div>
 
@@ -35,6 +35,26 @@
                 <li><strong>Equipment Limitations:</strong> {{ modification.equipment_limitations }}</li>
                 {% endif %}
             </ul>
+            {% if modification.change_summary %}
+            <div class="change-summary">
+                <h3>What Changed</h3>
+                <pre class="result-text">{{ modification.change_summary }}</pre>
+            </div>
+            {% endif %}
+
+            <div id="chat-modifications" class="change-summary" {% if not modification.chat_modifications %}style="display:none"{% endif %}>
+                <h3>Chat Modifications</h3>
+                <ul id="chat-modifications-list" class="criteria-list">
+                    {% if modification.chat_modifications %}
+                        {% for line in modification.chat_modifications.split('\n') %}
+                            {% if line.strip() %}
+                            <li>{{ line.strip() }}</li>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                </ul>
+            </div>
+
         </div>
 
         <!-- Original Recipe -->
@@ -70,10 +90,27 @@
             <input type="text" id="chat-input" class="chat-input" placeholder="Type a message..." autocomplete="off">
             <button type="submit" class="chat-send-btn">Send</button>
         </form>
+        <!-- Print/Export Button -->
+        <div class="print-export-bar">
+            <button id="print-recipe-btn" class="print-btn" title="Print Recipe">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                Export Recipe
+            </button>
+        </div>
     </aside>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+<script>
+document.getElementById("print-recipe-btn").addEventListener("click", function () {
+    window.print();
+});
+if (new URLSearchParams(window.location.search).get("print") === "1") {
+    setTimeout(function () { window.print(); }, 500);
+}
+
+
+</script>
 {% endblock %}

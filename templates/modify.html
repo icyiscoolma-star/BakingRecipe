@@ -2,28 +2,9 @@
 
 {% block content %}
 <form id="modify-form" action="/submit" method="POST" enctype="multipart/form-data">
-<input type="hidden" name="mode" value="{{ mode }}">
 
-{% if mode == 'upload' %}
-<h1 class="modify-title">Upload a Recipe</h1>
-
-<div class="upload-section">
-    <div class="upload-input-group">
-        <label for="recipe-text">Paste your recipe text:</label>
-        <textarea id="recipe-text" name="recipe_text" class="upload-textarea" placeholder="Paste your recipe here..."></textarea>
-    </div>
-
-    <div class="upload-divider">OR</div>
-
-    <div class="upload-input-group">
-        <label for="file-upload">Upload a file:</label>
-        <input type="file" id="file-upload" name="recipe_file" accept=".txt,.pdf,image/*" class="file-input">
-        <div id="upload-preview" class="upload-preview"></div>
-    </div>
-</div>
-
-{% else %}
-<h1 class="modify-title">Create a Recipe</h1>
+<h1 class="modify-title">Start a Recipe</h1>
+<p class="modify-subtitle">Provide your recipe using any one (or more) of the options below, then set your criteria.</p>
 
 <div class="create-row">
     <div class="create-column">
@@ -45,7 +26,23 @@
     </div>
 </div>
 
+<div class="create-row">
+    <div class="create-column">
+        <h2>Paste Recipe Text</h2>
+        <div class="upload-input-group">
+            <textarea id="recipe-text" name="recipe_text" class="upload-textarea" placeholder="Paste your recipe here..."></textarea>
+        </div>
+    </div>
+</div>
+
 <div class="create-row create-row-bottom">
+    <div class="create-column">
+        <h2>Upload a File</h2>
+        <p class="field-hint">Text, PDF, or photo of a recipe.</p>
+        <input type="file" id="file-upload" name="recipe_file" accept=".txt,.pdf,image/*" class="file-input">
+        <div id="upload-preview" class="upload-preview"></div>
+    </div>
+
     <div class="create-column">
         <h2>Paste a URL</h2>
         <div class="url-input-group">
@@ -55,14 +52,7 @@
         <input type="hidden" id="fetched-recipe-content" name="fetched_recipe_content" value="">
         <div id="url-preview" class="url-preview"></div>
     </div>
-
-    <div class="create-column">
-        <h2>Upload a Photo</h2>
-        <input type="file" id="photo-upload" name="recipe_photo" accept="image/*" class="file-input">
-        <div id="photo-preview" class="photo-preview"></div>
-    </div>
 </div>
-{% endif %}
 
 <!-- Shared Recipe Criteria -->
     <div class="criteria-section">
@@ -108,6 +98,17 @@
             </div>
         </fieldset>
 
+        <fieldset>
+            <legend>Recipe Scaling</legend>
+            <div class="scaling-presets">
+                <button type="button" class="scale-btn" data-scale="0.5x">0.5x</button>
+                <button type="button" class="scale-btn scale-btn--active" data-scale="1x">1x</button>
+                <button type="button" class="scale-btn" data-scale="2x">2x</button>
+                <button type="button" class="scale-btn" data-scale="3x">3x</button>
+            </div>
+            <input type="text" id="scale-text-input" name="scaling" class="scale-text" placeholder='e.g. "I want to make a third of the recipe"' autocomplete="off" value="1x">
+        </fieldset>
+
         <button type="submit" class="submit-btn">Modify My Recipe</button>
     </div>
 </form>
@@ -115,4 +116,33 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/modify.js') }}"></script>
+<script>
+(function () {
+    var presetBtns = document.querySelectorAll(".scale-btn");
+    var textInput = document.getElementById("scale-text-input");
+
+    presetBtns.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            var val = this.getAttribute("data-scale");
+            textInput.value = val;
+            presetBtns.forEach(function (b) { b.classList.remove("scale-btn--active"); });
+            this.classList.add("scale-btn--active");
+        });
+    });
+
+    // Clear active preset when user types custom text
+    textInput.addEventListener("input", function () {
+        var val = this.value.trim();
+        var matched = false;
+        presetBtns.forEach(function (btn) {
+            if (btn.getAttribute("data-scale") === val) {
+                btn.classList.add("scale-btn--active");
+                matched = true;
+            } else {
+                btn.classList.remove("scale-btn--active");
+            }
+        });
+    });
+})();
+</script>
 {% endblock %}

@@ -485,6 +485,56 @@ body {
     border-bottom: none;
 }
 
+.change-summary {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e0d6cc;
+}
+
+.change-summary h3 {
+    font-size: 1rem;
+    color: #5d4037;
+    margin-bottom: 0.5rem;
+}
+
+/* ── Recipe Scaling ── */
+.scaling-presets {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.scale-btn {
+    padding: 0.4rem 1rem;
+    border: 1px solid #d7ccc8;
+    border-radius: 20px;
+    background: #fff;
+    color: #5d4037;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.scale-btn:hover {
+    border-color: #5d4037;
+}
+
+.scale-btn--active {
+    background: #5d4037;
+    color: #fdf6ee;
+    border-color: #5d4037;
+}
+
+.scale-text {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d7ccc8;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-family: inherit;
+}
+
 /* Chat Panel */
 .chat-panel {
     width: 320px;
@@ -536,6 +586,78 @@ body {
     background: #5d4037;
     color: #fdf6ee;
     align-self: flex-end;
+}
+
+.chat-bubble--choices {
+    max-width: 95%;
+    background: transparent;
+    padding: 0;
+}
+
+.chat-choices {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.chat-choices-question {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #3e2723;
+    margin-bottom: 0.25rem;
+    background: #f5f0eb;
+    padding: 0.5rem 0.75rem;
+    border-radius: 10px;
+}
+
+.chat-choice-btn {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.5rem 0.75rem;
+    background: #fff;
+    border: 1px solid #d7ccc8;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.chat-choice-btn:hover {
+    border-color: #5d4037;
+    background: #fdf6ee;
+}
+
+.chat-choice-btn strong {
+    font-size: 0.85rem;
+    color: #3e2723;
+}
+
+.chat-choice-btn span {
+    font-size: 0.75rem;
+    color: #8d6e63;
+}
+
+.chat-choice-btn--disabled {
+    opacity: 0.5;
+    cursor: default;
+    pointer-events: none;
+}
+
+.chat-choice-btn--selected {
+    opacity: 1;
+    border-color: #4caf50;
+    background: #e8f5e9;
+}
+
+/* Recipe update highlight animation */
+@keyframes recipeFlash {
+    0% { background-color: #e8f5e9; }
+    100% { background-color: #fdf6ee; }
+}
+
+.recipe-updated {
+    animation: recipeFlash 1.5s ease;
 }
 
 .chat-input-area {
@@ -667,6 +789,11 @@ body {
     color: #e65100;
 }
 
+.history-tag--ingred {
+    background: #fce4ec;
+    color: #c62828;
+}
+
 .history-tag--equip {
     background: #e3f2fd;
     color: #1565c0;
@@ -694,6 +821,123 @@ body {
     color: #5d4037;
     font-weight: 600;
     text-decoration: underline;
+}
+
+/* ── Print / Export ── */
+.print-export-bar {
+    display: flex;
+    margin-top: 0.75rem;
+}
+
+.print-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.6rem 1.4rem;
+    background: #5d4037;
+    color: #fdf6ee;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.print-btn:hover {
+    background: #4e342e;
+}
+
+.history-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+}
+
+.history-export-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: none;
+    border: 1px solid #d7ccc8;
+    border-radius: 8px;
+    color: #5d4037;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.history-export-btn:hover {
+    background: #5d4037;
+    color: #fdf6ee;
+}
+
+/* ── Print Styles ── */
+@media print {
+    .navbar,
+    .footer,
+    .chat-panel,
+    .print-export-bar,
+    .result-card--original,
+    .result-card--criteria {
+        display: none !important;
+    }
+
+    body {
+        background: #fff;
+        color: #000;
+        font-family: Georgia, "Times New Roman", serif;
+    }
+
+    .content {
+        max-width: 100% !important;
+        padding: 0 !important;
+    }
+
+    .results-layout {
+        display: block;
+    }
+
+    .result-card {
+        border: none;
+        border-left: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .result-card--modified {
+        border-left-color: transparent;
+    }
+
+    .result-card h2 {
+        display: none;
+    }
+
+    .result-card h3 {
+        font-size: 1.6rem;
+        color: #000;
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+
+    .result-card-section h4 {
+        font-size: 1.1rem;
+        color: #333;
+        border-bottom: 1px solid #ccc;
+        padding-bottom: 0.25rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .result-text {
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 0.95rem;
+        line-height: 1.7;
+        white-space: pre-wrap;
+    }
 }
 
 /* ── Responsive ── */
