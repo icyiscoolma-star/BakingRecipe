@@ -64,6 +64,7 @@ body {
 /* ── Cards ── */
 .cards {
     display: flex;
+    flex-wrap: wrap;
     gap: 2rem;
     justify-content: center;
     padding: 1rem 0 3rem;
@@ -880,6 +881,170 @@ body {
 .history-export-btn:hover {
     background: #5d4037;
     color: #fdf6ee;
+}
+
+/* ── Baking Loader Overlay ── */
+.bake-loader {
+    position: fixed;
+    inset: 0;
+    background: rgba(253, 246, 238, 0.96);
+    z-index: 9999;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+}
+
+.bake-loader.is-active {
+    display: flex;
+    animation: bake-loader-fade-in 0.3s ease;
+}
+
+@keyframes bake-loader-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.bake-loader-stage {
+    position: relative;
+    width: 160px;
+    height: 200px;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.egg-timer {
+    position: relative;
+    width: 170px;
+    height: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.egg-timer-knob {
+    width: 22px;
+    height: 14px;
+    background: #5d4037;
+    border-radius: 4px 4px 2px 2px;
+    box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.25);
+    margin-bottom: -4px;
+    z-index: 2;
+}
+
+.egg-timer-body {
+    position: relative;
+    width: 160px;
+    height: 160px;
+    background: #d7a86e;
+    border: 4px solid #5d4037;
+    border-radius: 50%;
+    box-shadow: inset 0 -8px 0 rgba(62, 39, 35, 0.18),
+                inset 0 6px 0 rgba(255, 255, 255, 0.25),
+                0 6px 14px rgba(62, 39, 35, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.egg-timer-base {
+    width: 70px;
+    height: 10px;
+    background: #5d4037;
+    border-radius: 0 0 6px 6px;
+    margin-top: -6px;
+    box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.25);
+}
+
+.egg-timer-face {
+    position: relative;
+    width: 124px;
+    height: 124px;
+    background: #fdf6ee;
+    border-radius: 50%;
+    box-shadow: inset 0 2px 4px rgba(62, 39, 35, 0.18);
+}
+
+.egg-timer-tick {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    width: 3px;
+    height: 10px;
+    margin-left: -1.5px;
+    background: #5d4037;
+    border-radius: 2px;
+    transform-origin: 50% 54px;
+}
+
+.egg-timer-tick--minor {
+    height: 6px;
+    opacity: 0.6;
+}
+
+.egg-timer-tick--12 { transform: rotate(0deg); }
+.egg-timer-tick--1  { transform: rotate(30deg);  height: 6px; opacity: 0.6; }
+.egg-timer-tick--2  { transform: rotate(60deg);  height: 6px; opacity: 0.6; }
+.egg-timer-tick--3  { transform: rotate(90deg); }
+.egg-timer-tick--4  { transform: rotate(120deg); height: 6px; opacity: 0.6; }
+.egg-timer-tick--5  { transform: rotate(150deg); height: 6px; opacity: 0.6; }
+.egg-timer-tick--6  { transform: rotate(180deg); }
+.egg-timer-tick--7  { transform: rotate(210deg); height: 6px; opacity: 0.6; }
+.egg-timer-tick--8  { transform: rotate(240deg); height: 6px; opacity: 0.6; }
+.egg-timer-tick--9  { transform: rotate(270deg); }
+.egg-timer-tick--10 { transform: rotate(300deg); height: 6px; opacity: 0.6; }
+.egg-timer-tick--11 { transform: rotate(330deg); height: 6px; opacity: 0.6; }
+
+.egg-timer-hand {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 4px;
+    height: 50px;
+    background: #c0392b;
+    border-radius: 2px 2px 0 0;
+    transform-origin: 50% 100%;
+    transform: translate(-50%, -100%) rotate(0deg);
+    animation: egg-timer-tick-down 4s linear infinite;
+    box-shadow: 0 1px 2px rgba(62, 39, 35, 0.3);
+}
+
+@keyframes egg-timer-tick-down {
+    from { transform: translate(-50%, -100%) rotate(0deg); }
+    to   { transform: translate(-50%, -100%) rotate(-360deg); }
+}
+
+.egg-timer-pivot {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 12px;
+    height: 12px;
+    background: #5d4037;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 0 2px #fdf6ee, 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.bake-loader-title {
+    font-size: 1.6rem;
+    color: #3e2723;
+    margin: 0 0 0.5rem;
+}
+
+.bake-loader-message {
+    font-size: 1.05rem;
+    color: #5d4037;
+    min-height: 1.5em;
+    transition: opacity 0.35s ease;
+}
+
+.bake-loader-message.is-swapping {
+    opacity: 0;
 }
 
 /* ── Print Styles ── */

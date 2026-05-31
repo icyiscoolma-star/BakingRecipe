@@ -112,6 +112,35 @@
         <button type="submit" class="submit-btn">Modify My Recipe</button>
     </div>
 </form>
+
+<div id="bake-loader" class="bake-loader" aria-hidden="true">
+    <div class="bake-loader-stage">
+        <div class="egg-timer">
+            <div class="egg-timer-knob"></div>
+            <div class="egg-timer-body">
+                <div class="egg-timer-face">
+                    <span class="egg-timer-tick egg-timer-tick--12"></span>
+                    <span class="egg-timer-tick egg-timer-tick--3"></span>
+                    <span class="egg-timer-tick egg-timer-tick--6"></span>
+                    <span class="egg-timer-tick egg-timer-tick--9"></span>
+                    <span class="egg-timer-tick egg-timer-tick--1"></span>
+                    <span class="egg-timer-tick egg-timer-tick--2"></span>
+                    <span class="egg-timer-tick egg-timer-tick--4"></span>
+                    <span class="egg-timer-tick egg-timer-tick--5"></span>
+                    <span class="egg-timer-tick egg-timer-tick--7"></span>
+                    <span class="egg-timer-tick egg-timer-tick--8"></span>
+                    <span class="egg-timer-tick egg-timer-tick--10"></span>
+                    <span class="egg-timer-tick egg-timer-tick--11"></span>
+                    <div class="egg-timer-hand"></div>
+                    <div class="egg-timer-pivot"></div>
+                </div>
+            </div>
+            <div class="egg-timer-base"></div>
+        </div>
+    </div>
+    <h2 class="bake-loader-title">Baking up your recipe…</h2>
+    <p class="bake-loader-message" id="bake-loader-message">Preheating the oven…</p>
+</div>
 {% endblock %}
 
 {% block scripts %}

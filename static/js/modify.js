@@ -66,6 +66,32 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  // Baking loader overlay
+  var loader = document.getElementById("bake-loader");
+  var loaderMessage = document.getElementById("bake-loader-message");
+  var loaderMessages = [
+    "Preheating the oven…",
+    "Mixing ingredients…",
+    "Letting it rise…",
+    "Almost ready…",
+  ];
+  var loaderInterval = null;
+
+  function startLoader() {
+    if (!loader) return;
+    loader.classList.add("is-active");
+    loader.setAttribute("aria-hidden", "false");
+    var i = 0;
+    loaderInterval = setInterval(function () {
+      i = (i + 1) % loaderMessages.length;
+      loaderMessage.classList.add("is-swapping");
+      setTimeout(function () {
+        loaderMessage.textContent = loaderMessages[i];
+        loaderMessage.classList.remove("is-swapping");
+      }, 300);
+    }, 2500);
+  }
+
   // Form validation — require at least one input method
   form.addEventListener("submit", function (e) {
     var title = document.getElementById("recipe-title").value.trim();
@@ -78,6 +104,19 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!hasAny) {
       e.preventDefault();
       alert("Please provide a recipe by typing it in, pasting text, uploading a file, or fetching a URL.");
+      return;
+    }
+    startLoader();
+  });
+
+  // If the user navigates back to this page after submitting, hide the loader
+  window.addEventListener("pageshow", function () {
+    if (!loader) return;
+    loader.classList.remove("is-active");
+    loader.setAttribute("aria-hidden", "true");
+    if (loaderInterval) {
+      clearInterval(loaderInterval);
+      loaderInterval = null;
     }
   });
 });
