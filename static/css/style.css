@@ -644,10 +644,16 @@ body {
     pointer-events: none;
 }
 
-.chat-choice-btn--selected {
+.chat-choice-btn.chat-choice-btn--selected,
+.chat-choice-btn.chat-choice-btn--selected:disabled,
+.chat-choice-btn--disabled.chat-choice-btn--selected {
     opacity: 1;
     border-color: #4caf50;
     background: #e8f5e9;
+}
+
+.chat-choice-btn.chat-choice-btn--selected strong {
+    color: #2e7d32;
 }
 
 /* Recipe update highlight animation */

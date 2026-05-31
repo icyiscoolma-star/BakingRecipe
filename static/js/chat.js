@@ -133,28 +133,45 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // Parse stored chat messages that might be JSON
-  var existingBubbles = messages.querySelectorAll(".chat-bubble--assistant");
-  existingBubbles.forEach(function (bubble) {
+  var allBubbles = Array.from(messages.querySelectorAll(".chat-bubble"));
+  allBubbles.forEach(function (bubble, idx) {
+    if (!bubble.classList.contains("chat-bubble--assistant")) return;
     var text = bubble.textContent.trim();
-    if (text.charAt(0) === "{") {
-      try {
-        var parsed = JSON.parse(text);
-        if (parsed.type === "choices" && parsed.options) {
-          bubble.textContent = "";
-          bubble.classList.add("chat-bubble--choices");
-          var choicesEl = renderChoices(parsed);
-          bubble.appendChild(choicesEl);
-          // Disable buttons on historical choices
-          bubble.querySelectorAll(".chat-choice-btn").forEach(function (b) {
-            b.disabled = true;
-            b.classList.add("chat-choice-btn--disabled");
-          });
-        } else if (parsed.type === "message" && parsed.content) {
-          bubble.textContent = parsed.content;
+    if (text.charAt(0) !== "{") return;
+
+    try {
+      var parsed = JSON.parse(text);
+      if (parsed.type === "choices" && parsed.options) {
+        bubble.textContent = "";
+        bubble.classList.add("chat-bubble--choices");
+        var choicesEl = renderChoices(parsed);
+        bubble.appendChild(choicesEl);
+
+        // Find the next user message to see which choice was applied
+        var selectedLabel = null;
+        for (var i = idx + 1; i < allBubbles.length; i++) {
+          if (allBubbles[i].classList.contains("chat-bubble--user")) {
+            var userText = allBubbles[i].textContent.trim();
+            if (userText.indexOf("Apply: ") === 0) {
+              selectedLabel = userText.substring(7).trim();
+            }
+            break;
+          }
         }
-      } catch (e) {
-        // Not JSON, leave as-is
+
+        // Disable all historical choice buttons; mark the selected one
+        bubble.querySelectorAll(".chat-choice-btn").forEach(function (b) {
+          b.disabled = true;
+          b.classList.add("chat-choice-btn--disabled");
+          if (selectedLabel && b.querySelector("strong").textContent === selectedLabel) {
+            b.classList.add("chat-choice-btn--selected");
+          }
+        });
+      } else if (parsed.type === "message" && parsed.content) {
+        bubble.textContent = parsed.content;
       }
+    } catch (e) {
+      // Not JSON, leave as-is
     }
   });
 

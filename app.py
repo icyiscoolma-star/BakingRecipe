@@ -1,6 +1,7 @@
 import os
 import io
 import json
+import re
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from dotenv import load_dotenv
 from supabase import create_client
@@ -23,6 +24,19 @@ anthropic_key = os.getenv("ANTHROPIC_API_KEY")
 claude = None
 if anthropic_key:
     claude = anthropic.Anthropic(api_key=anthropic_key)
+
+
+def extract_json(text):
+    """Extract a JSON object from Claude's response, handling markdown fences and preamble text."""
+    # Strip markdown code fences
+    text = re.sub(r"^```(?:json)?\s*", "", text.strip(), flags=re.IGNORECASE)
+    text = re.sub(r"\s*```$", "", text.strip())
+    # Find the first { and last } to extract the JSON object
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        text = text[start:end + 1]
+    return json.loads(text)
 
 
 def modify_recipe_with_ai(recipe_text, allergies, taste_preferences, ingredient_limitations, equipment_limitations, scaling="1"):
@@ -498,8 +512,8 @@ Always respond with ONLY the JSON object, no other text."""
 
     # Parse the JSON reply for the frontend
     try:
-        parsed = json.loads(reply)
-    except (json.JSONDecodeError, TypeError):
+        parsed = extract_json(reply)
+    except (json.JSONDecodeError, TypeError, ValueError):
         parsed = {"type": "message", "content": reply}
 
     return jsonify(parsed)
@@ -553,8 +567,10 @@ Keep everything else in the recipe the same. Only modify what is necessary to ap
             system="You are a recipe modification assistant. Apply the user's chosen substitution to the recipe. Return only valid JSON with the updated recipe sections.",
             messages=[{"role": "user", "content": apply_prompt}],
         )
-        result = json.loads(response.content[0].text)
-    except (json.JSONDecodeError, TypeError):
+        raw_text = response.content[0].text
+        result = extract_json(raw_text)
+    except (json.JSONDecodeError, TypeError, ValueError) as e:
+        print(f"Failed to parse apply response: {e}\nRaw: {raw_text if 'raw_text' in dir() else 'N/A'}")
         return jsonify({"error": "Failed to parse AI response."}), 500
     except Exception as e:
         print(f"Claude apply API error: {e}")
