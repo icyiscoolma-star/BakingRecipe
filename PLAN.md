@@ -642,7 +642,7 @@ CREATE TABLE cookbook_recipes (
 
 ---
 
-## Design 6: Baking Loading Animation
+## Design 6: Baking Loading Animation DONE
 
 **Files:** `static/css/style.css` (append loader styles), `templates/modify.html` (add loader overlay), `static/js/modify.js` (extend)
 

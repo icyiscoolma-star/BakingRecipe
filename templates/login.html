@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{#
+  login.html — SCAFFOLD for the login + signup page.
+
+  This is a skeleton with structure + hints, not finished markup. Fill in the pieces
+  marked TODO. It already extends base.html so it gets your navbar/footer/CSS.
+
+  What this page needs:
+    1. A flash-message area (to show "invalid login", "check your email", etc.)
+    2. An email/password LOG IN form  -> POST /login
+    3. A "Sign in with Google" button  -> links to /auth/google
+    4. A link (or second form) to SIGN UP -> POST /signup
+
+  Style hints:
+    - Reuse your existing .card / button classes from style.css so it matches the app.
+    - Wrap the form in a centered card (~400px wide).
+#}
+
+{% block content %}
+<div class="auth-page">  {# TODO: add CSS for .auth-page (center the card) if you want #}
+
+  {# 1. FLASH MESSAGES --------------------------------------------------------
+     In your routes you call flash("..."). Loop over them here so the user sees them.
+     Hint: #}
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      {# TODO: render each message in a styled box, e.g. <div class="flash">{{ m }}</div> #}
+    {% endif %}
+  {% endwith %}
+
+  {# 2. EMAIL / PASSWORD LOGIN FORM ------------------------------------------
+     Hints:
+       - <form method="POST" action="{{ url_for('auth.login') }}">
+       - an <input type="email"    name="email"    required>
+       - an <input type="password" name="password" required>
+       - a submit button "Log in"
+     The route reads request.form.get("email") / ("password"). #}
+  <h1>Log in</h1>
+  {# TODO: build the login form here #}
+
+
+  {# 3. SIGN IN WITH GOOGLE ---------------------------------------------------
+     This is just a link to the route that starts the OAuth redirect. Hint:
+       <a class="btn-google" href="{{ url_for('auth.google_login') }}">
+         Sign in with Google
+       </a>
+     (Add a Google logo/icon later if you want.) #}
+  {# TODO: add the Google button #}
+
+
+  {# 4. LINK TO SIGN UP -------------------------------------------------------
+     Either link to a separate signup page, or add a second form that POSTs to
+     {{ url_for('auth.signup') }} with the same email/password fields. Hint:
+       <p>No account? <a href="{{ url_for('auth.signup') }}">Sign up</a></p> #}
+  {# TODO: add the signup link/form #}
+
+</div>
+{% endblock %}
